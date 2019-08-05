@@ -208,6 +208,7 @@ class RandDict():
 	def getOneWord(self,length=0):
 		return self.randOne(length)
 		
+randDict=RandDict()
 
 if __name__=='__main__':
 	rd=RandDict()

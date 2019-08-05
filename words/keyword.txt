@@ -14138,7 +14138,6 @@ caesural
 caesuras
 caesuric
 cafe
-caf¨¦
 cafes
 cafeteria
 cafeterias
@@ -60816,7 +60815,6 @@ managers
 managership
 manages
 managing
-ma?ana
 mananas
 manatee
 manatees
@@ -94314,13 +94312,6 @@ senium
 senna
 sennas
 senopia
-se?or
-se?ora
-se?oras
-se?ores
-se?orita
-se?oritas
-se?ors
 sensa
 sensate
 sensation
