@@ -41,7 +41,7 @@ class RandDict():
 			return
 		RandDict.inited=True
 		random.seed()
-		self.creatpkg=False
+		# self.creatpkg=False
 		
 		with open(os.path.join(os.path.dirname(__file__),'words','keyword.txt')) as f:
 			tlist=f.readlines()
@@ -212,7 +212,7 @@ randDict=RandDict()
 
 if __name__=='__main__':
 	rd=RandDict()
-	rd.creatpkg=False
+	# rd.creatpkg=False
 	# print(rd.getClass('btn_play'))
 	for i in range(0,10):
 		# print(rd.randOne(10))

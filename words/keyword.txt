@@ -25581,7 +25581,6 @@ datable
 datal
 datamation
 dataperfect
-date
 dateable
 dated
 datedness
@@ -92800,10 +92799,8 @@ scenario
 scenarios
 scenarist
 scenarists
-scene
 sceneries
 scenery
-scenes
 scenic
 scenically
 scent

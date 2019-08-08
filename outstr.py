@@ -32,6 +32,7 @@ class OutString:
 		
 		self.strReg=re.compile('".*?"')#识别字符串
 		self.strLen=2#字符串最小长度
+		self.clearNotes=True#是否删掉注释
 		
 		self.strList=[]
 		
@@ -97,8 +98,9 @@ class OutString:
 					cc=f.read()
 					
 				#去掉注释
-				cc=self.noteReg1.sub('',cc)
-				cc=self.noteReg2.sub('',cc)
+				if self.clearNotes:
+					cc=self.noteReg1.sub('',cc)
+					cc=self.noteReg2.sub('',cc)
 				#替换不需要提出来的字符串
 				self.strFunList=[]
 				cc=self.strFunReg.sub(self.__strKeepFun,cc)

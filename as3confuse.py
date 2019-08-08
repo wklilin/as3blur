@@ -57,8 +57,10 @@ class EmptyFunction(object):
 class AS3CodeRow(object):
 	DATA_TYPE = ["String", "int", "Boolean", "Class"]
 	DATA_TYPE2 = ["String", "int", "Boolean"]
-	CODE_TYPE = ["const", "var", "function"]
-	CODE_TYPE2 = ["const", "var"]
+	# CODE_TYPE = ["const", "var", "function"]#去掉const，因为const在catch语句内不合法
+	# CODE_TYPE2 = ["const", "var"]
+	CODE_TYPE = ["var", "function"]
+	CODE_TYPE2 = ["var"]
 	
 	def __init__(self, t_func):
 		self.fun = t_func
@@ -145,7 +147,8 @@ class AS3CodeRow(object):
 			if t_fun==self.fun:#Xue
 				return self.func()
 			if not t_fun.isParameter:
-				t_str = self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "()"
+				# t_str = self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "()"
+				t_str = t_fun.clas.name + "." + t_fun.clas.staticVar.name + "." + t_fun.name + "()"
 			else:
 				t_parameter = ""
 				for item in t_fun.parameter:
@@ -158,7 +161,8 @@ class AS3CodeRow(object):
 					else:
 						t_parameter += "new " + item[1] + "()" + ","
 				
-				t_str = self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "(" + t_parameter[0:-1] + ")"
+				# t_str = self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "(" + t_parameter[0:-1] + ")"
+				t_str = t_fun.clas.name + "." + t_fun.clas.staticVar.name + "." + t_fun.name + "(" + t_parameter[0:-1] + ")"
 		return t_str+";"
 	
 	def initValue(self):
@@ -207,8 +211,8 @@ class AS3CodeRow(object):
 		
 		if self.codeDataType == "Class":
 			t_v = self.codeClass.getFuncPublicByNotVoid()
-			t_fun = random.choice(t_v)
-			if t_fun:
+			if len(t_v)>0:
+				t_fun = random.choice(t_v)
 				t_scc = ""
 				if t_fun.isParameter:
 					for item in t_fun.parameter:
@@ -255,14 +259,16 @@ class AS3CodeRow(object):
 					t_list2 = self.code.getVariable(item[1],self.clas.level)
 					if len(t_list2)>0:
 						t_class = random.choice(t_list2)
-						t_str += self.code.doc + "." + t_class[0][0].lower() + "." + t_class[0][1].name + ","
+						# t_str += self.code.doc + "." + t_class[0][0].name.lower() + "." + t_class[0][1].name + ","
+						t_str += t_class[0][0].name + "." + t_class[0][0].staticVar.name + "." + t_class[0][1].name + ","
 					else:
 						t_str += "new " + item[1] + "(),"
 		
 		t_str = t_str[0:-1]
 		
 		if t_global:
-			self.codeValue += "\n\t\t\t" + self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "(" + t_str + ")"
+			# self.codeValue += "\n\t\t\t" + self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "(" + t_str + ")"
+			self.codeValue += "\n\t\t\t" + t_fun.clas.name + "." + t_fun.clas.staticVar.name + "." + t_fun.name + "(" + t_str + ")"
 		else:
 			self.codeValue += "\n\t\t\t" + t_fun.name + "(" + t_str + ")"
 	
@@ -365,15 +371,17 @@ class AS3CodeRow(object):
 						t_list2 = self.code.getVariable(item[1],self.clas.level)
 						if len(t_list2):
 							t_class = random.choice(t_list2)
-							t_str += self.code.doc + "." + t_class[0][0].lower() + "." + t_class[0][1].name + ","
+							# t_str += self.code.doc + "." + t_class[0][0].name.lower() + "." + t_class[0][1].name + ","
+							t_str += t_class[0][0].name + "." + t_class[0][0].staticVar.name + "." + t_class[0][1].name + ","
 						else:
 							t_str += "new " + item[1] + "(),"
 				
 				t_str = t_str[0:-1]
-				t_str = self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "(" + t_str + ")"
+				# t_str = self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "(" + t_str + ")"
+				t_str = t_fun.clas.name + "." + t_fun.clas.staticVar.name + "." + t_fun.name + "(" + t_str + ")"
 				return t_str
 			else:
-				return self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "()"
+				return t_fun.clas.name + "." + t_fun.clas.staticVar.name + "." + t_fun.name + "()"
 		return t_str
 	
 	def randomStringValue(self):
@@ -413,7 +421,7 @@ class AS3Function(object):
 	
 	def createValue(self):
 		#确定多少行代码
-		t_row=random.randint(0,AS3Confuse.CONFIG['codeMax'])+1
+		t_row=random.randint(0,self.code.config['codeMax'])+1
 		self.rows = []
 		for idx in range(t_row):
 			row=AS3CodeRow(self)
@@ -469,23 +477,38 @@ class AS3Function(object):
 class AS3Variable(object):
 	DATA_TYPE = ["String", "int", "Boolean"]
 	
-	def __init__(self,clas,type):
+	def __init__(self,clas,type,t_static=False,t_name=None,t_dataType=None,t_initValue=False):
 		self.value=None
 		self.clas=clas
 		self.code=clas.code
 		self.type = type
-		self.dataType = random.choice(AS3Variable.DATA_TYPE)
-		if self.clas.level > 0 and random.random() > 0.7:
-			self.dataType = "Class"
-		self.dataType000 = self.dataType
 		
-		if self.dataType == "Class":
-			self.dataType = self.code.getRandomClassUnderLevel(self.clas.level).name
+		self.isStatic=t_static
 		
-		self.name = randDict.getProto()
+		if t_name:
+			self.name=t_name
+		else:
+			self.name = randDict.getProto()
 	
+		if t_dataType:
+			self.dataType=t_dataType
+		else:
+			self.dataType = random.choice(AS3Variable.DATA_TYPE)
+			if self.clas.level > 0 and random.random() > 0.7:
+				self.dataType = "Class"
+			if self.dataType == "Class":
+				self.dataType = self.code.getRandomClassUnderLevel(self.clas.level).name
+				
+		if t_initValue:
+			self.value=' = new '+t_dataType+'();'
+		else:
+			self.value=';'
+		
 	def out(self):
-		t_str = "\t\t" + self.type + " var " + self.name + ":" + self.dataType + ";"
+		type=self.type
+		if self.isStatic:
+			type+=' static'
+		t_str = "\t\t" + type + " var " + self.name + ":" + self.dataType + self.value
 		return t_str
 	
 	def isOpen(self):
@@ -503,15 +526,20 @@ class AS3Class(object):
 		self.package = pkg
 		self.level = lv
 		self.filePath=(self.package.replace('.', '\\') + '\\' + self.name + ".as").strip('\\')
+		self.staticVar=None#自身类型的静态属性
 		self.variables=None
 		self.functions=None
 		
-		self.dependClass=None
+		#----------------------------------------------------------------
+		self.baseContent=None
 		self.type=None#class or interface
+		self.passInsert=0#跳过插入代码的几率，0表示每行后都插入代码，1表示完全不插入代码
 	
-	def createVariables(self):
+	def createVariables(self,t_static=False):
+		if t_static:
+			self.staticVar=AS3Variable(self,AS3Class.PUBLIC,True,None,self.name,True)
 		self.variables = []
-		num = random.randint(0,AS3Confuse.CONFIG["VariableMax"]) + AS3Confuse.CONFIG["VariableMin"]
+		num = random.randint(0,self.code.config["varMax"]) + self.code.config["varMin"]
 		for idx in range(num):
 			t_obj = AS3Variable(self,AS3Class.PUBLIC)
 			self.variables.append(t_obj)
@@ -520,7 +548,7 @@ class AS3Class(object):
 				self.variables.append(t_obj)
 	
 	def createFunctions(self):
-		num = random.randint(0,AS3Confuse.CONFIG["FunctionsMax"]) + AS3Confuse.CONFIG["FunctionsMin"]
+		num = random.randint(0,self.code.config["funMax"]) + self.code.config["funMin"]
 		levels = RandomAS3.rateArray(num, self.code.level_fun)#Xue
 		self.functions = []
 		for idx in range(num):
@@ -548,6 +576,8 @@ class AS3Class(object):
 		
 	def outVariables(self):
 		t_str = ""
+		if self.staticVar:
+			t_str += self.staticVar.out() + "\n"
 		for item in self.variables:
 			t_str += item.out() + "\n"
 		return t_str
@@ -569,7 +599,7 @@ class AS3Class(object):
 		t_arr = []
 		for item in self.variables:
 			if item.isOpen() and item.dataType == t_dataType:
-				t_arr.append([self.name, item])
+				t_arr.append([self, item])
 		return t_arr
 	
 	def getFunc(self):
@@ -613,16 +643,23 @@ class AS3Class(object):
 	def insertRandCode(self):
 		if self.type=='interface':
 			return
-		regStrs=['package\\b','import\\b','public\s+class','([\w ]+?)?(var|const)\s','\}','return\\b','break\\b']#匹配需要跳过插入代码的行
+		#        元数据              包定义      import语句   switch语句  class语句       变量定义                    }   return      break      for
+		regStrs=['\[\w+\((.*?)\)\]','package\\b','import\\b','switch\\b','public\s+class','([\w ]+?)?(var|const)\s','\}','return\\b','break\\b','for\\b']#匹配需要跳过插入代码的行
+		#               写在单行的函数                     if       else
+		regStrs.extend(['[\w ]*?\\bfunction\\b.*?\{.*?\}','if\\b','else\\b'])
 		passLineReg=re.compile('|'.join(regStrs))
 		staticReg=re.compile('\\b(static)?\s*(?:public|protected|private|internal)?\s+function\s+?((get|set)?\s*\w+)\s*\((.*?)\)\s*?(:\s*?\w+?)?\s*?\{')#匹配函数，如果是静态函数则跳过插入代码，直到遇到非静态函数再开始插入代码
 		isStatic=False
+		# ifelseReg=re.compile('')#匹配不带大括号的if else
 		
 		newLines=[]
-		lines=self.dependClass.splitlines()
-		for line in lines:
+		lines=self.baseContent.splitlines()
+		while len(lines)>0:
+			line=lines.pop(0)
 			newLines.append(line)
+			
 			line=line.strip()
+			
 			m=staticReg.search(line)
 			if m:
 				if m.group(1)=='static':
@@ -631,23 +668,24 @@ class AS3Class(object):
 					isStatic=False
 			if isStatic:
 				continue
+			
 			m=passLineReg.match(line)
 			if not m:
-				num=random.randint(2,4)
-				fun=EmptyFunction(self.code,self)
-				for i in range(num):
-					row=AS3CodeRow(fun)
-					row.initWithNotReturn()
-					fun.rows.append(row)
-				newLines.append(AS3Confuse.markBlur(fun.out()))
-				# print(newLines.pop())
-				# raw_input()
-		self.dependClass='\n'.join(newLines)
+				if RandomAS3.boolean(self.passInsert):
+					num=random.randint(2,3)
+					fun=EmptyFunction(self.code,self)
+					for i in range(num):
+						row=AS3CodeRow(fun)
+						row.initWithNotReturn()
+						fun.rows.append(row)
+					newLines.append(AS3Confuse.markBlur(fun.out()))
+			
+		self.baseContent='\n'.join(newLines)
 		print(u'插入代码完成：'+self.filePath)
 		
 	'''把生成的随机属性和方法加入到dependClass的class定义后'''
 	def addRandCode(self):
-		self.dependClass=self.code.clsReg.sub(self._outBaseSubFun,self.dependClass)
+		self.baseContent=self.code.clsReg.sub(self._outBaseSubFun,self.baseContent)
 		print(u'添加代码完成：'+self.filePath)
 	
 	def _outBaseSubFun(self,m):
@@ -663,17 +701,10 @@ class AS3Confuse(object):
 	
 	Template=None
 	
-	CODE_INDEX=0
-	CODE_NUM=[]
-	CODE_NUM.append({"VariableMin": 10, "VariableMax": 20, "FunctionsMin": 10, "FunctionsMax": 20, "codeMax": 5})
-	CODE_NUM.append({"VariableMin": 15, "VariableMax": 30, "FunctionsMin": 15, "FunctionsMax": 30, "codeMax": 10})
-	CODE_NUM.append({"VariableMin": 20, "VariableMax": 40, "FunctionsMin": 25, "FunctionsMax": 50, "codeMax": 15})
-	CONFIG=CODE_NUM[CODE_INDEX]
-	
 	#添加表示混淆代码的注释
 	@staticmethod
 	def markBlur(cc):
-		return '\n//-*-blur-code-start-*-\n'+cc+'\n//-*-blur-code-end-*-\n'
+		return '\n//-%-confuse-start-%-\n'+cc+'\n//-%-confuse-end-%-\n'
 	
 	def __init__(self):
 		if not AS3Confuse.Template:
@@ -689,7 +720,7 @@ class AS3Confuse(object):
 {function}\n\
 	}\n\
 }'
-		
+		self.config={"varMin": 5, "varMax": 10, "funMin": 5, "funMax": 10, "codeMax": 5}
 		self.level_class=3
 		self.level_fun=3
 		
@@ -697,7 +728,7 @@ class AS3Confuse(object):
 		self.doc_file=None
 		self.doc=None
 		
-		self.num_asfile = 50
+		self.numClass = 50
 		self.pkglist=None
 		self.importstr=None
 		self.classList=None
@@ -705,19 +736,28 @@ class AS3Confuse(object):
 		self.nativePath=None
 		
 		#------------------------------------------------------------------------------------------
-		self.as3ClsList=None
+		self.insertClsList=None
+		self.passInsertGlobal=0
+		self.passInsertDict={}
 		
 		self.noteReg=re.compile('\\/\\*(\\s|.)*?\\*\\/|(?<!:)\\/\\/.*')#注释
 		self.braceReg=re.compile('(?<=\S)\s+\{')#大括号左半部分
+		self.elseReg=re.compile('\}\s*else\\b')
 		self.spaceReg=re.compile('(?<=\n)[ 	]*\n')#空行
 		self.internalReg=re.compile('\\binternal\s+class\\b')#包内类:internal class
 		# strReg=re.compile('".*?"|\'.*?\'')#字符串
 		# reReg=re.compile('')#正则
 		
-		self.clsReg=re.compile('public\s+(class|interface)\s+(\w+)\s*(?:[\w\s,]+)?\{')#匹配public类定义，添加import和属性，不包括包外类
-		# self.clsReg=re.compile('([	]*)(?:\[.*?\]\s*)*\s*?([	]*)[a-z ]*class\s+\w+\\b')#匹配所有类定义，包括包外类
+		self.clsReg=re.compile('public\s+(class|interface)\s+(\w+)\s*(?:[\w\s,]+)?\{')#匹配public class类定义，添加import和属性，不包括包外类
+		self.simpleClsReg=re.compile('\\b(class|interface)\s+(\w+)')
+		
+	def creat(self,t_path,t_num):
+		self.formatFiles(t_path)
+		self.createClass(t_num)
+		self.insertCode(t_path)
+		self.outFiles(t_path)
 	
-	'''格式化代码'''
+	'''格式化代码，检查代码格式'''
 	def formatFiles(self,t_path):
 		#classReg=re.compile('\bclass\b.*?\{')
 		for root,dirs,files in os.walk(t_path):
@@ -729,12 +769,13 @@ class AS3Confuse(object):
 						cc=f.read()
 					cc=self.noteReg.sub('',cc)
 					cc=self.braceReg.sub('{',cc)
-					cc=cc.strip()#Xue
+					cc=self.elseReg.sub('}else',cc)
+					cc=cc.strip()#Xue  去掉文件开头和末尾的空字符
 					cc=self.spaceReg.sub('',cc)
 					cc=self.internalReg.sub('public class',cc)
+					self.checkFormat(fp,cc)
 					mh=self.clsReg.search(cc)
 					if mh:
-						# print(mh.group())
 						if mh.group(2)!=nm:
 							raw_input('file name not == class name')
 					else:
@@ -743,9 +784,15 @@ class AS3Confuse(object):
 					with open(fp,'w') as f:
 						f.write(cc)
 						
+	def checkFormat(self,fp,asfile):
+		clsli=self.simpleClsReg.findall(asfile)
+		if len(clsli)>=2:
+			print(u'-->警告：不支持包内类定义，一个文件中只允许定义一个同名类。file:'+fp)
+			raise Exception(fp)
+	
 	
 	def insertCode(self,tpath):
-		self.as3ClsList=[]
+		self.insertClsList=[]
 		rootdir=os.getcwd()
 		os.chdir(tpath)
 		for root,dirs,files in os.walk('.'):
@@ -757,41 +804,51 @@ class AS3Confuse(object):
 				if ext=='.as':
 					asCls=AS3Class(self,nm,pkg,self.level_class)
 					with open(fp) as f:
-						asCls.dependClass=f.read()
-					self.as3ClsList.append(asCls)
-					m=self.clsReg.search(asCls.dependClass)
+						asCls.baseContent=f.read()
+					self.insertClsList.append(asCls)
+					m=self.clsReg.search(asCls.baseContent)
 					asCls.type=m.group(1)
 					
 		os.chdir(rootdir)
-		for item in self.as3ClsList:
+		for item in self.insertClsList:
 			item.createVariables()
-		for item in self.as3ClsList:
+		for item in self.insertClsList:
 			item.createFunctions()
-		for item in self.as3ClsList:
+		for item in self.insertClsList:
 			item.createFunctionsValue()
 		
-		for item in self.as3ClsList:
+		for item in self.insertClsList:
+			item.passInsert=self.passInsertGlobal
+			if item.name in self.passInsertDict:
+				item.passInsert=self.passInsertDict[item.name]
 			item.insertRandCode()
 			
-		for item in self.as3ClsList:
+		for item in self.insertClsList:
 			item.addRandCode()
 		
 		self.nativePath=tpath.replace('/','\\')
-		for item in self.as3ClsList:
-			self.saveFile(item.filePath, item.dependClass)
+		for item in self.insertClsList:
+			self.saveFile(item.filePath, item.baseContent)
+	
+	'''设置跳过插入代码的几率，0表示每行后都插入代码，1表示完全不插入代码，默认0'''
+	def setGlobalInsertRate(self,rate):
+		self.passInsertGlobal=rate
+		
+	'''设置特定类（文件）跳过插入代码的几率，0表示每行后都插入代码，1表示完全不插入代码，默认0'''
+	def setInsertRate(self,name,rate):
+		self.passInsertDict[name]=rate
 	
 	
 	def createClass(self, t_num):
-		self.num_asfile = t_num
+		self.numClass = t_num
 		self.doc_class = randDict.getClass()
 		self.doc_file = self.doc_class.replace('.', "/") + ".as"
 		self.doc = self.doc_class.split('.')[-1]
 		print(self.doc_class)
-		# print(self.doc)
 		
 		#生成包，生成import
 		self.pkglist = []
-		self.importstr = "\timport " + self.doc_class + ";\n"
+		self.importstr = ""
 		numPkg = random.randint(3,5)
 		numPkg = 1
 		if numPkg > t_num:
@@ -817,37 +874,37 @@ class AS3Confuse(object):
 	
 	#创建类
 	def updateCreateClass(self):
-		levels=RandomAS3.rateArray(self.num_asfile,self.level_class)
-		for idx in range(self.num_asfile):
+		levels=RandomAS3.rateArray(self.numClass,self.level_class)
+		for idx in range(self.numClass):
 			self.classList.append(AS3Class(self, randDict.getClass(), self.pkglist[idx % len(self.pkglist)], levels.pop()))
-			print(u"生成类: " + self.classList[idx].name + "\t" + str(idx + 1) + "/" + str(self.num_asfile))
+			print(u"生成类: " + self.classList[idx].name + "\t" + str(idx + 1) + "/" + str(self.numClass))
 		print(u"Class生成完成!")
 	
 	#创建变量
 	def updatecreateVariable(self):
 		for idx,item in enumerate(self.classList):
-			item.createVariables()
-			print(u"生成类变量: " + item.name + "\t" + str(idx + 1) + "/" + str(self.num_asfile))
+			item.createVariables(True)
+			print(u"生成类变量: " + item.name + "\t" + str(idx + 1) + "/" + str(self.numClass))
 		print(u"变量生成完成!")
 	
 	#创建方法
 	def updatecreateFunctions(self):
 		for idx,item in enumerate(self.classList):
 			item.createFunctions()
-			print(u"生成类方法: " + item.name + "\t" + str(idx + 1) + "/" + str(self.num_asfile))
+			print(u"生成类方法: " + item.name + "\t" + str(idx + 1) + "/" + str(self.numClass))
 	
 	
 	#创建方法内容
 	def updatecreateFunctionsValue(self):
 		for idx,item in enumerate(self.classList):
 			item.createFunctionsValue()
-			print(u"代码填充: " + item.name + "\t" + str(idx + 1) + "/" + str(self.num_asfile))
+			print(u"代码填充: " + item.name + "\t" + str(idx + 1) + "/" + str(self.numClass))
 		
 	def outFiles(self,root):
 		self.nativePath=root.replace('/','\\')
 		for idx,item in enumerate(self.classList):
 			self.saveFile(item.filePath, item.out())
-			print(u"生成代码文件: " + item.name + "\t" + str(idx + 1) + "/" + str(self.num_asfile))
+			print(u"生成代码文件: " + item.name + "\t" + str(idx + 1) + "/" + str(self.numClass))
 		
 		print(u"生成文档类")
 		self.saveFile(self.doc_file, self.out())
@@ -864,7 +921,7 @@ class AS3Confuse(object):
 	
 	def savePublicFun(self):
 		arr = self.getPulbicFuns()
-		self.saveFile("rand_funs.txt", arr.join("\n"))
+		self.saveFile("rand_funs.txt", "\n".join(arr))
 	
 	def out(self):
 		tVars = ""
@@ -886,7 +943,7 @@ class AS3Confuse(object):
 	
 	def getVariable(self, t_dataType, lv):
 		t_arr=[]
-		for idx,item in enumerate(self.classList):
+		for item in self.classList:
 			if item.level<lv:
 				t_list = item.getVariableByType(t_dataType)
 				if len(t_list)>0:
@@ -895,7 +952,7 @@ class AS3Confuse(object):
 	
 	def getFuns(self, t_dataType, lv):
 		t_arr=[]
-		for idx,item in enumerate(self.classList):
+		for item in self.classList:
 			if item.level<lv:
 				t_obj = item.getFuncPublicByParameter(t_dataType)
 				if len(t_obj)>0:
@@ -966,7 +1023,7 @@ class AS3Confuse(object):
 						tArr = fun.parameter.concat()
 						while len(tArr)>0:
 							paras.append(getFunParameters(tArr.shift()[1]))
-						arr.append(self.doc + "." + item.name.lower() + "." + fun.name + "(" + paras.join(", ") + ");")
+						arr.append(self.doc + "." + item.name.lower() + "." + fun.name + "(" + ", ".join(paras) + ");")
 					else:
 						arr.append(self.doc + "." + item.name.lower() + "." + fun.name + "();")
 		

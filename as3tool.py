@@ -14,7 +14,8 @@ import shutil
 import re
 import random
 import time
-from words import RandDict
+from words import randDict
+
 
 class AdditionFun():
 	def __init__(self):
@@ -248,12 +249,10 @@ class AS3BlurTool():
 	def __init__(self):
 		random.seed()
 		
-		#随机字典
-		self.randDict=RandDict()
 		#额外参数
 		self.additionArgv=AdditionArgv()
 		#额外函数
-		self.additionFun=AdditionFun()
+		# self.additionFun=AdditionFun()
 		#替换类名:原类名，用来查找原类名
 		self.classDict={}
 		#要替换的关键字字典
@@ -280,7 +279,7 @@ class AS3BlurTool():
 		rep['re']=re.compile('\\b'+oldkey.replace('.','\.')+'\\b')
 		rep['dif']=not oldkey==newkey
 		self.replDict[oldkey]=rep
-		self.randDict.addKeyWord(oldkey,newkey)
+		randDict.addKeyWord(oldkey,newkey)
 		return rep
 	
 	#添加不需要混淆的字
@@ -340,7 +339,7 @@ class AS3BlurTool():
 						newname=self.replDict[oldname]['new']
 						print('worning: Class name "'+oldname+'" has existed in self.replDict!!->'+newname)
 					else:
-						newname=self.randDict.getClass(oldname)
+						newname=randDict.getClass(oldname)
 						self.addReplace(len(oldname),oldname,newname)
 				else:
 					if not oldname in self.replDict:
@@ -374,7 +373,7 @@ class AS3BlurTool():
 			if gp.isupper():#Xue  排除全是大写的情况
 				pass
 			else:
-				resu=self.randDict.getProto(word)
+				resu=randDict.getProto(word)
 				self.addReplace(0,gp,resu)
 		return resu
 		
@@ -403,7 +402,7 @@ class AS3BlurTool():
 				with open(fp) as f:
 					filec=f.read()
 				#额外rand方法
-				filec=self.additionFun.add(nm,filec)
+				# filec=self.additionFun.add(nm,filec)
 				#替换需要替换的单词
 				filec=self.replAllWords(filec)
 				#添加额外参数
