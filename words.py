@@ -54,9 +54,6 @@ class RandDict():
 				if len(w)<=6:
 					RandDict.wlist6.append(w)
 		
-	# def creatPkgPath(self,bool):
-		# self.creatpkg=bool
-		
 	def getUsedWordByKey(self,key):
 		if not key in RandDict.usedDict:
 			return None
@@ -70,8 +67,8 @@ class RandDict():
 		RandDict.usedList.append(word)
 		
 	
-	def getRate(self):
-		return random.randint(0,100)
+	def bool(self,val=50):
+		return random.randint(0,100)>val
 		
 	def randChar(self):
 		idx=random.randint(0,25)
@@ -81,7 +78,7 @@ class RandDict():
 	def randLetters(self):
 		idx=random.randint(0,25)
 		word=RandDict.lower[idx]
-		if self.getRate()>50:
+		if self.bool(50):
 			idx=random.randint(0,25)
 			word+=RandDict.lower[idx]
 		return word
@@ -96,7 +93,7 @@ class RandDict():
 		word=tlist[idx]
 		
 		#修改单词第一个字母
-		# if self.getRate()>50:
+		# if self.bool():
 			# word=RandDict.shengmu[random.randint(0,20)]+word[1:]
 		
 		return word
@@ -114,84 +111,65 @@ class RandDict():
 		word=RandDict.prefix[idx]
 		return word
 		
-	@word_only_one
-	def getClass(self,baseWord=None):
+	#去掉字段中的_和.
+	def formatBaseWord(self,baseWord=None):
 		if baseWord is None:
 			baseWord=self.randOne()
-		if baseWord.find('.')>0:#如果带包名
+		if baseWord.find('.')>0:
 			baseWord=baseWord.split('.').pop()
-		word=baseWord
-		if baseWord.find('_')>0:#如果字符串有下划线
-			if self.getRate()>70:
-				li=baseWord.split('_')
-				if self.getRate()>50:
-					del li[0]
-					word=self.randOne(10).capitalize()+'_'.join(li)
+		if baseWord.find('_')>0:
+			li=baseWord.split('_')
+			li.pop(0)
+			baseWord=random.choice(li)
+		return baseWord
+		
+	@word_only_one
+	def getClass(self,baseWord=None):
+		word=self.formatBaseWord(baseWord).capitalize()
+		if len(word)<7:#如果字符串比较短
+			if self.bool(80):
+				if self.bool(50):
+					word=self.randOne(10).capitalize()+'_'+word
 				else:
-					del li[len(li)-1]
-					word='_'.join(li)+self.randOne(10).capitalize()
+					word=word+self.randOne(10).capitalize()
 				return word
-				
-		if baseWord and len(baseWord)<7:#如果字符串比较短
-			if self.getRate()>70:
-				if self.getRate()>50:
-					word=self.randOne(10).capitalize()+'_'+baseWord
-				else:
-					word=baseWord+self.randOne(10).capitalize()
-				return word
-			
-		word=self.randOne(10).capitalize()
-		if self.getRate()>60:#使用预设词缀
+		if self.bool(30):
+			word=self.randOne(10).capitalize()
+		if self.bool(60):#使用预设词缀
 			pre=self.randPrefix().capitalize()
-			if self.getRate()>80:#全大写
+			if self.bool(80):#全大写
 				pre=pre.upper()
-			#if self.getRate()>60:#前缀加下划线
+			#if self.bool()>60:#前缀加下划线
 				#pre=pre+'_'
 			word=pre+word
 		else:#使用单词组合
 			tword=self.randOne(10).capitalize()
-			if self.getRate()>80:
+			if self.bool(80):
 				tword='_'+tword
 			word+=tword
-			
-		# if self.creatpkg:#生成包路径
-			# rate=self.getRate()
-			# if rate>90:#com包路径
-				# word='com.'+self.randOne(6)+'.'+word
-			# elif rate>70:#短包路径
-				# word=self.randPrefix()+'.'+word
-		
 		return word
 		
 	@word_only_one
 	def getProto(self,baseWord=None):
-		if baseWord is None:
-			baseWord=self.randOne()
-		if baseWord.find('_')>0:#如果字符串有下划线
-			if self.getRate()>60:
-				li=baseWord.split('_')
-				if self.getRate()>70:
-					del li[0]
-					word=self.randOne(6)+'_'.join(li)
-				else:
-					del li[len(li)-1]
-					word='_'.join(li)+self.randOne(6)
-				return word
-				
-		word=self.randOne(6)
-		if self.getRate()>70:
+		word=self.formatBaseWord(baseWord).lower()
+		if self.bool(30):
+			word=self.randOne(6)
+		if self.bool(70):
 			word=word.capitalize()
-		rate=self.getRate()
-		if rate>70:#带预设前缀
+		rate=random.randint(0,100)
+		if rate>80:#预设前缀
 			word=self.randPrefix()+'_'+word
-		elif rate>55:#带随机前缀
+		elif rate>60:#随机前缀
 			word=self.randWordPrefix()+'_'+word
-		elif rate>40:#带字符前缀
+		elif rate>40:#字符前缀
 			word=self.randLetters()+'_'+word
-		elif rate>25:#下划线前缀
-			word='_'+word
+		else:#随机单词后缀
+			tword=self.randOne(6).capitalize()
+			if self.bool(70):
+				tword='_'+tword.lower()
+			word+=tword
 		
-		if self.getRate()>70 and not word[0]=='_':
+		if self.bool(80) and not word[0]=='_':#下划线前缀
 			word='_'+word
 		
 		return word
@@ -216,9 +194,10 @@ if __name__=='__main__':
 	# print(rd.getClass('btn_play'))
 	for i in range(0,10):
 		# print(rd.randOne(10))
-		print(rd.getClass('btn_play'))
-	print(RandDict.usedList)
-	print(RandDict.usedDict)
+		# print(rd.getClass('btn_play'))
+		print(rd.getProto('btn_play'))
+	# print(RandDict.usedList)
+	# print(RandDict.usedDict)
 	raw_input("over!")
 	
 	

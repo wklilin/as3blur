@@ -29,7 +29,7 @@ class RandomAS3(object):
 		
 	@staticmethod
 	def boolean(rat=0.5):
-		return random.random()>rat
+		return random.random()<rat
 		
 class EmptyFunction(object):
 	def __init__(self,code,clas):
@@ -38,15 +38,12 @@ class EmptyFunction(object):
 		self.level=self.code.level_fun
 		self.rows=[]
 		self.returnNotVoid = RandomAS3.boolean()
-		self.returnType = "void"
-		self.returnType000 = self.returnType
+		self.returnType = AS3Function.VOID
 		if self.returnNotVoid:
-			self.returnType = random.choice(AS3Function.DATA_TYPE)
-			self.returnType000 = self.returnType
-			if self.returnType == "Class":
+			self.returnType = random.choice(AS3Class.DATA_TYPE)
+			if self.returnType == AS3Class.CLASS:
 				self.returnType = self.code.getRandomClassUnderLevel(self.clas.level).name
 		self.isParameter = False
-		# self.parameter = None
 		
 	def out(self):
 		t_rowStr = ''
@@ -55,12 +52,10 @@ class EmptyFunction(object):
 		return t_rowStr.rstrip()
 		
 class AS3CodeRow(object):
-	DATA_TYPE = ["String", "int", "Boolean", "Class"]
-	DATA_TYPE2 = ["String", "int", "Boolean"]
-	# CODE_TYPE = ["const", "var", "function"]#去掉const，因为const在catch语句内不合法
-	# CODE_TYPE2 = ["const", "var"]
-	CODE_TYPE = ["var", "function"]
-	CODE_TYPE2 = ["var"]
+	VAR='var'
+	CONST='const'
+	FUNCTION='function'
+	CODE_TYPE = [VAR, FUNCTION]
 	
 	def __init__(self, t_func):
 		self.fun = t_func
@@ -74,45 +69,41 @@ class AS3CodeRow(object):
 	def initWithReturn(self):
 		for item in self.fun.rows:
 			if item.codeDataType == self.fun.returnType:
-				self.codeValue = "return " + item.codeName
+				self.codeValue = 'return ' + item.codeName
 				break
 		if not self.codeValue:
-			if self.fun.returnType == "String":
-				self.codeValue = "return " + self.StringValue()
-			elif self.fun.returnType == "int":
-				self.codeValue = "return " + self.IntValue()
-			elif self.fun.returnType == "Boolean":
-				self.codeValue = "return " + random.choice(['true','false'])
+			if self.fun.returnType == AS3Class.STRING:
+				self.codeValue = 'return ' + self.StringValue()
+			elif self.fun.returnType == AS3Class.INT:
+				self.codeValue = 'return ' + self.IntValue()
+			elif self.fun.returnType == AS3Class.BOOLEAN:
+				self.codeValue = 'return ' + random.choice(['true','false'])
 			else:
-				self.codeValue = "return new " + self.fun.returnType + "()"
+				self.codeValue = 'return new ' + self.fun.returnType + '()'
 		
 	def initWithNotReturn(self):
 		self.codeType = random.choice(AS3CodeRow.CODE_TYPE)
 		if self.clas.level == 0 or self.fun.level == 0:
-			self.codeType = random.choice(AS3CodeRow.CODE_TYPE2)
+			self.codeType = AS3CodeRow.VAR
 			
-		if self.codeType == "var": 
+		if self.codeType == AS3CodeRow.VAR: 
 			self.codeName = randDict.getProto()
-			self.codeValue = "var " + self.codeName + self.initValue()
+			self.codeValue = 'var ' + self.codeName + self.initValue()
 			self.nextVar()
+			self.selfVar()
 			if self.clas.level>0:#Xue
 				self.next()
-		elif self.codeType == "const": 
-			self.codeName = randDict.getProto()
-			self.codeValue = "const " + self.codeName + self.initValue()
-			if self.clas.level>0:#Xue
-				self.next()
-		elif self.codeType == "function": 
+		elif self.codeType == AS3CodeRow.FUNCTION: 
 			self.codeValue = self.func()
 		
 	def out(self):
-		return "\t\t\t" + self.codeValue
+		return '\t\t\t' + self.codeValue
 	
 	def func(self):
-		t_str = ""
+		t_str = ''
 		localFun = RandomAS3.boolean()
 		t_fun=None
-		t_parameter=""
+		t_parameter=''
 		if localFun:
 			funs = self.clas.getFunctionsUnderLv(self.fun.level)
 			t_fun = random.choice(funs)
@@ -125,20 +116,20 @@ class AS3CodeRow(object):
 			if t_fun.returnNotVoid:
 				return self.func()
 			if not t_fun.isParameter:
-				t_str = t_fun.name + "()"
+				t_str = t_fun.name + '()'
 			else:
-				t_parameter = ""
+				t_parameter = ''
 				for item in t_fun.parameter:
-					if item[1] == "String":
-						t_parameter += self.StringValue() + ","
-					elif item[1] == "int":
-						t_parameter += self.IntValue() + ","
-					elif item[1] == "Boolean":
-						t_parameter += self.BoolValue() + ","
+					if item[1] == AS3Class.STRING:
+						t_parameter += self.StringValue() + ','
+					elif item[1] == AS3Class.INT:
+						t_parameter += self.IntValue() + ','
+					elif item[1] == AS3Class.BOOLEAN:
+						t_parameter += self.BoolValue() + ','
 					else:
-						t_parameter += "new " + item[1] + "()" + ","
+						t_parameter += 'new ' + item[1] + '()' + ','
 				
-				t_str = t_fun.name + "(" + t_parameter[0:-1] + ")"
+				t_str = t_fun.name + '(' + t_parameter[0:-1] + ')'
 		else:
 			t_arr = self.code.getFunsNotVoid(self.clas.level)
 			t_fun = random.choice(t_arr)[0]
@@ -147,42 +138,38 @@ class AS3CodeRow(object):
 			if t_fun==self.fun:#Xue
 				return self.func()
 			if not t_fun.isParameter:
-				# t_str = self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "()"
-				t_str = t_fun.clas.name + "." + t_fun.clas.staticVar.name + "." + t_fun.name + "()"
+				t_str = t_fun.clas.name + '.' + t_fun.clas.staticVar.name + '.' + t_fun.name + '()'
 			else:
-				t_parameter = ""
+				t_parameter = ''
 				for item in t_fun.parameter:
-					if item[1] == "String":
-						t_parameter += self.StringValue() + ","
-					elif item[1] == "int":
-						t_parameter += self.IntValue() + ","
-					elif item[1] == "Boolean":
-						t_parameter += self.BoolValue() + ","
+					if item[1] == AS3Class.STRING:
+						t_parameter += self.StringValue() + ','
+					elif item[1] == AS3Class.INT:
+						t_parameter += self.IntValue() + ','
+					elif item[1] == AS3Class.BOOLEAN:
+						t_parameter += self.BoolValue() + ','
 					else:
-						t_parameter += "new " + item[1] + "()" + ","
+						t_parameter += 'new ' + item[1] + '()' + ','
 				
-				# t_str = self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "(" + t_parameter[0:-1] + ")"
-				t_str = t_fun.clas.name + "." + t_fun.clas.staticVar.name + "." + t_fun.name + "(" + t_parameter[0:-1] + ")"
-		return t_str+";"
+				t_str = t_fun.clas.name + '.' + t_fun.clas.staticVar.name + '.' + t_fun.name + '(' + t_parameter[0:-1] + ')'
+		return t_str+';'
 	
 	def initValue(self):
-		self.codeDataType = random.choice(AS3CodeRow.DATA_TYPE)
-		if self.codeDataType == "Class":
-			if self.clas.level==0:
-				self.codeDataType = random.choice(AS3CodeRow.DATA_TYPE2)
-			else:
-				self.codeClass = self.code.getRandomClassUnderLevel(self.clas.level)#Xue
+		self.codeDataType = random.choice(AS3Class.DATA_TYPE)
+		if self.clas.level > 0 and RandomAS3.boolean(0.3):
+			self.codeDataType = AS3Class.CLASS
+			self.codeClass = self.code.getRandomClassUnderLevel(self.clas.level)#Xue
 		
-		if self.codeDataType == "String": 
-			return ": String = " + self.StringValue() + ";"
-		elif self.codeDataType == "int": 
-			return ": int = " + self.IntValue() + ";"
-		elif self.codeDataType == "Boolean": 
-			return ": Boolean = " + self.BoolValue() + ";"
-		elif self.codeDataType == "Class": 
-			return ": " + self.codeClass.name + " = new " + self.codeClass.name + "();"
+		if self.codeDataType == AS3Class.STRING: 
+			return ':String = ' + self.StringValue() + ';'
+		elif self.codeDataType == AS3Class.INT: 
+			return ':int = ' + self.IntValue() + ';'
+		elif self.codeDataType == AS3Class.BOOLEAN: 
+			return ':Boolean = ' + self.BoolValue() + ';'
+		elif self.codeDataType == AS3Class.CLASS: 
+			return ':' + self.codeClass.name + ' = new ' + self.codeClass.name + '();'
 		
-		return ""
+		return ''
 	
 	def next(self):
 		#本类调用函数赋值用
@@ -198,7 +185,7 @@ class AS3CodeRow(object):
 			self.next()
 		else:#其他类赋值
 			tureType=self.codeDataType
-			if self.codeDataType == "Class":
+			if self.codeDataType == AS3Class.CLASS:
 				tureType=self.codeClass.name
 			t_list = self.code.getFuns(tureType, self.clas.level)
 			if len(t_list)>0:
@@ -209,76 +196,79 @@ class AS3CodeRow(object):
 						self.cre(t_obj[1], idx, True)
 						return
 		
-		if self.codeDataType == "Class":
+		if self.codeDataType == AS3Class.CLASS:
 			t_v = self.codeClass.getFuncPublicByNotVoid()
 			if len(t_v)>0:
 				t_fun = random.choice(t_v)
-				t_scc = ""
+				t_scc = ''
 				if t_fun.isParameter:
 					for item in t_fun.parameter:
-						if item[1] == "String":
-							t_scc += self.StringValue() + ","
-						elif item[1] == "int":
-							t_scc += self.IntValue() + ","
-						elif item[1] == "Boolean":
-							t_scc += self.BoolValue() + ","
+						if item[1] == AS3Class.STRING:
+							t_scc += self.StringValue() + ','
+						elif item[1] == AS3Class.INT:
+							t_scc += self.IntValue() + ','
+						elif item[1] == AS3Class.BOOLEAN:
+							t_scc += self.BoolValue() + ','
 						else:
 							t_value = self.globalVaribleValue(item[1])
-							if t_value == "":
-								t_scc += "new " + item[1] + "()" + ","
+							if t_value == '':
+								t_scc += 'new ' + item[1] + '()' + ','
 							else:
-								t_scc += t_value + ","
+								t_scc += t_value + ','
 					t_scc = t_scc[0:-1]
-				self.codeValue += "\n\t\t\t" + self.codeName + "." + t_fun.name + "(" + t_scc + ");"
+				self.codeValue += '\n\t\t\t' + self.codeName + '.' + t_fun.name + '(' + t_scc + ');'
 	
 	def nextVar(self):
-		t_str = ""
-		if self.codeDataType == "String": 
-			t_str = self.StringValue() + ";"
-		elif self.codeDataType == "int": 
-			t_str = self.IntValue() + ";"
-		elif self.codeDataType == "Boolean": 
-			t_str = self.BoolValue() + ";"
-		elif self.codeDataType == "Class": 
-			t_str = self.codeClass.name + "();"
+		t_str = ''
+		if self.codeDataType == AS3Class.STRING: 
+			t_str = self.StringValue() + ';'
+		elif self.codeDataType == AS3Class.INT: 
+			t_str = self.IntValue() + ';'
+		elif self.codeDataType == AS3Class.BOOLEAN: 
+			t_str = self.BoolValue() + ';'
+		elif self.codeDataType == AS3Class.CLASS: 
+			t_str = self.codeClass.name + '();'
 			return
+		self.codeValue = self.codeValue + '\n\t\t\t' + self.codeName + ' = ' + t_str
 		
-		self.codeValue = self.codeValue + "\n\t\t\t" + self.codeName + " = " + t_str
+	def selfVar(self):
+		t_list = self.clas.getVariableByType(self.codeDataType,needOpen=False)
+		if len(t_list)>0:
+			tvar=random.choice(t_list)[1]
+			self.codeValue+='\n\t\t\t'+tvar.name+' = '+self.codeName+';//lalala'
 	
 	def cre(self, t_fun, index, t_global = False):
-		t_str = ""
+		t_str = ''
 		t_arr = t_fun.parameter
 		for idx,item in enumerate(t_arr):
 			if idx == index:
-				t_str += self.codeName + ","
+				t_str += self.codeName + ','
 			else:
 				t_list = self.clas.getVariableByType(item[1])
 				if len(t_list)>0:
-					t_str += random.choice(t_list)[1].name + ","
+					t_str += random.choice(t_list)[1].name + ','
 				else:
 					t_list2 = self.code.getVariable(item[1],self.clas.level)
 					if len(t_list2)>0:
 						t_class = random.choice(t_list2)
-						# t_str += self.code.doc + "." + t_class[0][0].name.lower() + "." + t_class[0][1].name + ","
-						t_str += t_class[0][0].name + "." + t_class[0][0].staticVar.name + "." + t_class[0][1].name + ","
+						t_str += t_class[0][0].name + '.' + t_class[0][0].staticVar.name + '.' + t_class[0][1].name + ','
 					else:
-						t_str += "new " + item[1] + "(),"
+						t_str += 'new ' + item[1] + '(),'
 		
 		t_str = t_str[0:-1]
 		
 		if t_global:
-			# self.codeValue += "\n\t\t\t" + self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "(" + t_str + ")"
-			self.codeValue += "\n\t\t\t" + t_fun.clas.name + "." + t_fun.clas.staticVar.name + "." + t_fun.name + "(" + t_str + ")"
+			self.codeValue += '\n\t\t\t' + t_fun.clas.name + '.' + t_fun.clas.staticVar.name + '.' + t_fun.name + '(' + t_str + ')'
 		else:
-			self.codeValue += "\n\t\t\t" + t_fun.name + "(" + t_str + ")"
+			self.codeValue += '\n\t\t\t' + t_fun.name + '(' + t_str + ')'
 	
 	def StringValue(self):
-		t_str = ""
+		t_str = ''
 		#用参数赋值参数
 		if self.fun.isParameter:
 			if RandomAS3.boolean():
 				for item in self.fun.parameter:
-					if item[1] == "String":
+					if item[1] == AS3Class.STRING:
 						if RandomAS3.boolean():
 							t_str = item[0]
 							return t_str
@@ -287,25 +277,25 @@ class AS3CodeRow(object):
 		if len(self.clas.getVariable())>0:
 			if RandomAS3.boolean():
 				for item in self.clas.variables:
-					if item.dataType == "String":
+					if item.dataType == AS3Class.STRING:
 						if RandomAS3.boolean():
 							t_str = item.name
 							return t_str
 		
-		t_str = self.globalVaribleValue("String")
-		if not t_str == "" and RandomAS3.boolean():
+		t_str = self.globalVaribleValue(AS3Class.STRING)
+		if not t_str == '' and RandomAS3.boolean():
 			return t_str
 		
 		t_str = self.randomStringValue()
 		return t_str
 	
 	def IntValue(self):
-		t_str = ""
+		t_str = ''
 		#用参数赋值参数
 		if self.fun.isParameter:
 			if RandomAS3.boolean():
 				for item in self.fun.parameter:
-					if item[1] == "int":
+					if item[1] == AS3Class.INT:
 						if RandomAS3.boolean():
 							t_str = item[0]
 							return t_str
@@ -314,25 +304,25 @@ class AS3CodeRow(object):
 		if len(self.clas.getVariable())>0:
 			if RandomAS3.boolean():
 				for item in self.clas.variables:
-					if item.dataType == "int":
+					if item.dataType == AS3Class.INT:
 						if RandomAS3.boolean():
 							t_str = item.name
 							return t_str
 		
-		t_str = self.globalVaribleValue("int")
-		if not t_str == "":
+		t_str = self.globalVaribleValue(AS3Class.INT)
+		if not t_str == '':
 			return t_str
 		
-		t_str = str(random.randint(0,999999))
+		t_str = str(random.randint(0,999))
 		return t_str
 	
 	def BoolValue(self):
-		t_str = ""
+		t_str = ''
 		#用参数赋值参数
 		if self.fun.isParameter:
 			if RandomAS3.boolean():
 				for item in self.fun.parameter:
-					if item[1] == "Boolean":
+					if item[1] == AS3Class.BOOLEAN:
 						if RandomAS3.boolean():
 							t_str = item[0]
 							return t_str
@@ -341,77 +331,71 @@ class AS3CodeRow(object):
 		if len(self.clas.getVariable())>0:
 			if RandomAS3.boolean():
 				for item in self.clas.variables:
-					if item.dataType == "Boolean":
+					if item.dataType == AS3Class.BOOLEAN:
 						if RandomAS3.boolean():
 							t_str = item.name
 							return t_str
 		
-		t_str = self.globalVaribleValue("Boolean")
-		if not t_str == "":
+		t_str = self.globalVaribleValue(AS3Class.BOOLEAN)
+		if not t_str == '':
 			return t_str
 		
 		t_str = random.choice(['true','false'])
 		return t_str
 	
 	def globalVaribleValue(self,t_dataType):
-		t_str = ""
+		t_str = ''
 		#其他类变量赋值
 		t_list = self.code.getVoid(t_dataType,self.clas.level)
 		if len(t_list)>0:
 			t_fun = random.choice(t_list)[0]
 			
 			if t_fun.isParameter:
-				t_str = ""
+				t_str = ''
 				t_arr = t_fun.parameter
 				for item in t_arr:
 					t_list = self.clas.getVariableByType(item[1])
 					if len(t_list)>0:
-						t_str += random.choice(t_list)[1].name + ","
+						t_str += random.choice(t_list)[1].name + ','
 					else:
 						t_list2 = self.code.getVariable(item[1],self.clas.level)
 						if len(t_list2):
 							t_class = random.choice(t_list2)
-							# t_str += self.code.doc + "." + t_class[0][0].name.lower() + "." + t_class[0][1].name + ","
-							t_str += t_class[0][0].name + "." + t_class[0][0].staticVar.name + "." + t_class[0][1].name + ","
+							t_str += t_class[0][0].name + '.' + t_class[0][0].staticVar.name + '.' + t_class[0][1].name + ','
 						else:
-							t_str += "new " + item[1] + "(),"
+							t_str += 'new ' + item[1] + '(),'
 				
 				t_str = t_str[0:-1]
-				# t_str = self.code.doc + "." + t_fun.clas.name.lower() + "." + t_fun.name + "(" + t_str + ")"
-				t_str = t_fun.clas.name + "." + t_fun.clas.staticVar.name + "." + t_fun.name + "(" + t_str + ")"
+				t_str = t_fun.clas.name + '.' + t_fun.clas.staticVar.name + '.' + t_fun.name + '(' + t_str + ')'
 				return t_str
 			else:
-				return t_fun.clas.name + "." + t_fun.clas.staticVar.name + "." + t_fun.name + "()"
+				return t_fun.clas.name + '.' + t_fun.clas.staticVar.name + '.' + t_fun.name + '()'
 		return t_str
 	
 	def randomStringValue(self):
 		#Xue
-		t_str = ""
+		t_str = ''
 		num = random.randint(1,4)
 		for i in range(num):
 			t_str += str(random.randint(0,9))
-		return "\"" + t_str + "\""
+		return '"' + t_str + '"'
 
 
 class AS3Function(object):
-	DATA_TYPE = ["String", "int", "Boolean", "Class"]
-	DATA_TYPE2 = ["String", "int", "Boolean"]
-	
-	def __init__(self, t_class, type, lv):
-		self.clas = t_class
-		self.code=t_class.code
+	VOID='void'
+	def __init__(self, clas, type, lv):
+		self.clas = clas
+		self.code=clas.code
 		self.type = type
 		self.level = lv
 		self.name = randDict.getFun()
 		self.returnNotVoid = RandomAS3.boolean()
-		self.returnType = "void"
-		self.returnType000 = self.returnType
+		self.returnType = AS3Function.VOID
 		if self.returnNotVoid:
-			self.returnType = random.choice(AS3Function.DATA_TYPE)
-			if self.clas.level == 0:
-				self.returnType = random.choice(AS3Function.DATA_TYPE2)
-			self.returnType000 = self.returnType
-			if self.returnType == "Class":
+			self.returnType = random.choice(AS3Class.DATA_TYPE)
+			if self.clas.level > 0 and RandomAS3.boolean(0.3):
+				self.returnType = AS3Class.CLASS
+			if self.returnType == AS3Class.CLASS:
 				self.returnType = self.code.getRandomClassUnderLevel(self.clas.level).name
 		self.isParameter = RandomAS3.boolean()
 		if self.isParameter:
@@ -435,72 +419,78 @@ class AS3Function(object):
 	
 	def outParameter(self):
 		if not self.isParameter:
-			return ""
-		t_str = ""
+			return ''
+		t_str = ''
 		for item in self.parameter:
-			t_str += item[0] + ":" + item[1] + ", "
+			t_str += item[0] + ':' + item[1] + ', '
 		return t_str[0:-1]
 	
 	def randomParameter(self):
 		t_arr = []
 		t_length = random.randint(1,3)
 		for i in range(t_length):
-			t_type = random.choice(AS3Function.DATA_TYPE)
-			if self.clas.level == 0:
-				t_type = random.choice(AS3Function.DATA_TYPE2)
-			if t_type == "Class":
+			t_type = random.choice(AS3Class.DATA_TYPE)
+			if self.clas.level > 0 and RandomAS3.boolean(0.3):
+				t_type = AS3Class.CLASS
+			if t_type == AS3Class.CLASS:
 				t_type = self.code.getRandomClassUnderLevel(self.clas.level).name
 			t_arr.append([randDict.getProto(), t_type])
 		return t_arr
 	
 	def out(self):
-		t_parameter = ""
+		t_parameter = ''
 		if self.isParameter:
 			for item in self.parameter:
-				t_parameter += item[0] + ": " + item[1] + ","
+				t_parameter += item[0] + ': ' + item[1] + ','
 			t_parameter = t_parameter[0:-1]
-		t_void = ":" + self.returnType
+		t_void = ':' + self.returnType
 		
-		t_rowStr = ""
+		t_rowStr = ''
 		if len(self.rows)>0:
 			for item in self.rows:
-				t_rowStr += item.out() + "\n"
+				t_rowStr += item.out() + '\n'
 		
-		t_str = "\t\t" + self.type + " function " + self.name + "(" + t_parameter + ")" + t_void + " {\n"
+		t_str = '\t\t' + self.type + ' function ' + self.name + '(' + t_parameter + ')' + t_void + ' {\n'
 		t_str += t_rowStr
-		t_str += "\t\t}\n"
+		t_str += '\t\t}\n'
 		return t_str
 
 	def isOpen(self):
 		return self.type == AS3Class.PUBLIC
 	
 class AS3Variable(object):
-	DATA_TYPE = ["String", "int", "Boolean"]
 	
-	def __init__(self,clas,type,t_static=False,t_name=None,t_dataType=None,t_initValue=False):
+	def __init__(self,clas,type,isStatic=False,name=None,dataType=None,initValue=False):
 		self.value=None
 		self.clas=clas
 		self.code=clas.code
 		self.type = type
 		
-		self.isStatic=t_static
+		self.isStatic=isStatic
 		
-		if t_name:
-			self.name=t_name
+		if name:
+			self.name=name
 		else:
 			self.name = randDict.getProto()
 	
-		if t_dataType:
-			self.dataType=t_dataType
+		if dataType:
+			self.dataType=dataType
 		else:
-			self.dataType = random.choice(AS3Variable.DATA_TYPE)
-			if self.clas.level > 0 and random.random() > 0.7:
-				self.dataType = "Class"
-			if self.dataType == "Class":
+			self.dataType = random.choice(AS3Class.DATA_TYPE)
+			if self.clas.level > 0 and random.random() > 0.75:
+				self.dataType = AS3Class.CLASS
+			if self.dataType == AS3Class.CLASS:
 				self.dataType = self.code.getRandomClassUnderLevel(self.clas.level).name
 				
-		if t_initValue:
-			self.value=' = new '+t_dataType+'();'
+		if initValue:
+			if self.dataType == AS3Class.STRING:
+				self.value=' = "'+str(random.randint(0,20))+'";'
+			elif self.dataType == AS3Class.INT:
+				self.value=' = '+str(random.randint(0,25))+';'
+			elif self.dataType == AS3Class.BOOLEAN:
+				self.value=' = false;'
+			else:
+				self.value=' = new '+self.dataType+'();'
 		else:
 			self.value=';'
 		
@@ -508,47 +498,78 @@ class AS3Variable(object):
 		type=self.type
 		if self.isStatic:
 			type+=' static'
-		t_str = "\t\t" + type + " var " + self.name + ":" + self.dataType + self.value
+		t_str = '\t\t' + type + ' var ' + self.name + ':' + self.dataType + self.value
 		return t_str
 	
 	def isOpen(self):
 		return self.type == AS3Class.PUBLIC
 
-
+class ClassObject(object):
+	def __init__(self):
+		self.path='Object'
+		self.name='Object'
+	
+class ClassShape(ClassObject):
+	def __init__(self):
+		ClassObject.__init__(self)
+		self.path='flash.display.Shape'
+		self.name='Shape'
+	
+class ClassSprite(ClassObject):
+	def __init__(self):
+		ClassObject.__init__(self)
+		self.path='flash.display.Sprite'
+		self.name='Sprite'
+	
+class ClassEventDispatcher(ClassObject):
+	def __init__(self):
+		ClassObject.__init__(self)
+		self.path='flash.events.EventDispatcher'
+		self.name='EventDispatcher'
+	
 class AS3Class(object):
-	PUBLIC="public"
-	PRIVATE="private"
-	TYPE = [PUBLIC, PRIVATE]
+	PUBLIC='public'
+	PRIVATE='private'
+	
+	PARENTS=[ClassObject(),ClassShape(),ClassEventDispatcher(),ClassSprite()]
+	
+	CLASS='Class'
+	STRING='String'
+	INT='int'
+	BOOLEAN='Boolean'
+	DATA_TYPE = [STRING, INT, BOOLEAN]
 	
 	def __init__(self,code,nm,pkg,lv):
 		self.code=code
 		self.name = nm
 		self.package = pkg
 		self.level = lv
-		self.filePath=(self.package.replace('.', '\\') + '\\' + self.name + ".as").strip('\\')
+		self.parent=random.choice(AS3Class.PARENTS)
+		self.filePath=(self.package.replace('.', '\\') + '\\' + self.name + '.as').strip('\\')
 		self.staticVar=None#自身类型的静态属性
 		self.variables=None
 		self.functions=None
 		
-		#----------------------------------------------------------------
+		#------------------------------------------------------------------------------------
+		
 		self.baseContent=None
 		self.type=None#class or interface
-		self.passInsert=0#跳过插入代码的几率，0表示每行后都插入代码，1表示完全不插入代码
+		self.insertRate=0#跳过插入代码的几率，0表示每行后都插入代码，1表示完全不插入代码
 	
-	def createVariables(self,t_static=False):
-		if t_static:
+	def createVariables(self,isStatic=False):
+		if isStatic:
 			self.staticVar=AS3Variable(self,AS3Class.PUBLIC,True,None,self.name,True)
 		self.variables = []
-		num = random.randint(0,self.code.config["varMax"]) + self.code.config["varMin"]
+		num = random.randint(0,self.code.config['varMax']) + self.code.config['varMin']
 		for idx in range(num):
-			t_obj = AS3Variable(self,AS3Class.PUBLIC)
+			t_obj = AS3Variable(self,AS3Class.PUBLIC,initValue=RandomAS3.boolean(0.4))
 			self.variables.append(t_obj)
 			if RandomAS3.boolean():
-				t_obj = AS3Variable(self,AS3Class.PRIVATE)
+				t_obj = AS3Variable(self,AS3Class.PRIVATE,initValue=RandomAS3.boolean(0.4))
 				self.variables.append(t_obj)
 	
 	def createFunctions(self):
-		num = random.randint(0,self.code.config["funMax"]) + self.code.config["funMin"]
+		num = random.randint(0,self.code.config['funMax']) + self.code.config['funMin']
 		levels = RandomAS3.rateArray(num, self.code.level_fun)#Xue
 		self.functions = []
 		for idx in range(num):
@@ -565,27 +586,29 @@ class AS3Class(object):
 	
 	def out(self):
 		tStr = AS3Confuse.Template
-		tStr = tStr.replace("{package}", self.package)
-		tStr = tStr.replace("{import}", self.code.importstr)
-		tStr = tStr.replace("{class}", self.name)
-		tStr = tStr.replace("{variable}", self.outVariables())
-		tStr = tStr.replace("{constructor}", "")
-		tStr = tStr.replace("{function}", self.outFunctions())
-		tStr = tStr.replace("{info}", "level:" + str(self.level))
+		tStr = tStr.replace('{package}', self.package)
+		tStr = tStr.replace('{parentimport}', 'import '+self.parent.path+';')
+		tStr = tStr.replace('{parent}', self.parent.name)
+		tStr = tStr.replace('{import}', self.code.importstr)
+		tStr = tStr.replace('{class}', self.name)
+		tStr = tStr.replace('{variable}', self.outVariables())
+		tStr = tStr.replace('{constructor}', '')
+		tStr = tStr.replace('{function}', self.outFunctions())
+		tStr = tStr.replace('{info}', 'level:' + str(self.level))
 		return tStr
 		
 	def outVariables(self):
-		t_str = ""
+		t_str = ''
 		if self.staticVar:
-			t_str += self.staticVar.out() + "\n"
+			t_str += self.staticVar.out() + '\n'
 		for item in self.variables:
-			t_str += item.out() + "\n"
+			t_str += item.out() + '\n'
 		return t_str
 	
 	def outFunctions(self):
-		t_str = ""
+		t_str = ''
 		for item in self.functions:
-			t_str += item.out() + "\n"
+			t_str += item.out() + '\n'
 		return t_str
 	
 	def getVariable(self):
@@ -595,11 +618,14 @@ class AS3Class(object):
 				t_arr.append(item)
 		return t_arr
 	
-	def getVariableByType(self,t_dataType):
+	def getVariableByType(self,t_dataType,needOpen=True):
 		t_arr = []
 		for item in self.variables:
-			if item.isOpen() and item.dataType == t_dataType:
-				t_arr.append([self, item])
+			if item.dataType == t_dataType:
+				if not needOpen:
+					t_arr.append([self, item])
+				elif item.isOpen():
+					t_arr.append([self, item])
 		return t_arr
 	
 	def getFunc(self):
@@ -648,8 +674,10 @@ class AS3Class(object):
 		#               写在单行的函数                     if       else
 		regStrs.extend(['[\w ]*?\\bfunction\\b.*?\{.*?\}','if\\b','else\\b'])
 		passLineReg=re.compile('|'.join(regStrs))
-		staticReg=re.compile('\\b(static)?\s*(?:public|protected|private|internal)?\s+function\s+?((get|set)?\s*\w+)\s*\((.*?)\)\s*?(:\s*?\w+?)?\s*?\{')#匹配函数，如果是静态函数则跳过插入代码，直到遇到非静态函数再开始插入代码
+		funReg=re.compile('\\b(static)?\s*(?:public|protected|private|internal)?\s+function\s+?((get|set)?\s*\w+)\s*\((.*?)\)\s*?(:\s*?\w+?)?\s*?\{')#匹配函数，如果是静态函数则跳过插入代码，直到遇到非静态函数再开始插入代码
 		isStatic=False
+		curFun=''
+		funObj=None
 		# ifelseReg=re.compile('')#匹配不带大括号的if else
 		
 		newLines=[]
@@ -660,25 +688,28 @@ class AS3Class(object):
 			
 			line=line.strip()
 			
-			m=staticReg.search(line)
+			tmpFun=curFun
+			m=funReg.search(line)
 			if m:
 				if m.group(1)=='static':
 					isStatic=True
 				else:
 					isStatic=False
+				tmpFun=m.group(2)
 			if isStatic:
 				continue
-			
+			if tmpFun!=curFun:
+				curFun=tmpFun
 			m=passLineReg.match(line)
 			if not m:
-				if RandomAS3.boolean(self.passInsert):
-					num=random.randint(2,3)
-					fun=EmptyFunction(self.code,self)
+				if RandomAS3.boolean(self.insertRate):
+					funObj=EmptyFunction(self.code,self)
+					num=random.randint(1,3)
 					for i in range(num):
-						row=AS3CodeRow(fun)
+						row=AS3CodeRow(funObj)
 						row.initWithNotReturn()
-						fun.rows.append(row)
-					newLines.append(AS3Confuse.markBlur(fun.out()))
+						funObj.rows.append(row)
+					newLines.append(AS3Confuse.markBlur(funObj.out()))
 			
 		self.baseContent='\n'.join(newLines)
 		print(u'插入代码完成：'+self.filePath)
@@ -696,6 +727,11 @@ class AS3Class(object):
 		impt=AS3Confuse.markBlur(self.code.importstr)
 		members=AS3Confuse.markBlur(self.outVariables()+'\n'+self.outFunctions())
 		return impt+gp+members
+		
+class AS3File(object):
+	def __init__(self):
+		pass
+
 
 class AS3Confuse(object):
 	
@@ -710,17 +746,18 @@ class AS3Confuse(object):
 		if not AS3Confuse.Template:
 			AS3Confuse.Template=''\
 'package {package}{//{info}\n\
-	import flash.display.MovieClip;\n\
+	{parentimport}\n\
 {import}\n\
-	public class {class} extends MovieClip{\n\
+	public class {class} extends {parent}{\n\
 {variable}\n\
 		public function {class}() {\n\
 {constructor}\n\
 		}\n\
+		\n\
 {function}\n\
 	}\n\
 }'
-		self.config={"varMin": 5, "varMax": 10, "funMin": 5, "funMax": 10, "codeMax": 5}
+		self.config={'varMin': 5, 'varMax': 10, 'funMin': 5, 'funMax': 10, 'codeMax': 5}
 		self.level_class=3
 		self.level_fun=3
 		
@@ -737,15 +774,15 @@ class AS3Confuse(object):
 		
 		#------------------------------------------------------------------------------------------
 		self.insertClsList=None
-		self.passInsertGlobal=0
-		self.passInsertDict={}
+		self.globalInsertRate=1
+		self.insertRateDict={}
 		
 		self.noteReg=re.compile('\\/\\*(\\s|.)*?\\*\\/|(?<!:)\\/\\/.*')#注释
 		self.braceReg=re.compile('(?<=\S)\s+\{')#大括号左半部分
 		self.elseReg=re.compile('\}\s*else\\b')
 		self.spaceReg=re.compile('(?<=\n)[ 	]*\n')#空行
 		self.internalReg=re.compile('\\binternal\s+class\\b')#包内类:internal class
-		# strReg=re.compile('".*?"|\'.*?\'')#字符串
+		# strReg=re.compile(''.*?'|\'.*?\'')#字符串
 		# reReg=re.compile('')#正则
 		
 		self.clsReg=re.compile('public\s+(class|interface)\s+(\w+)\s*(?:[\w\s,]+)?\{')#匹配public class类定义，添加import和属性，不包括包外类
@@ -797,7 +834,6 @@ class AS3Confuse(object):
 		os.chdir(tpath)
 		for root,dirs,files in os.walk('.'):
 			pkg=root.replace('\\','.').strip('.')
-			# print('pkg:'+pkg)
 			for file in files:
 				fp=os.path.join(root,file)
 				nm,ext=os.path.splitext(file)
@@ -818,9 +854,9 @@ class AS3Confuse(object):
 			item.createFunctionsValue()
 		
 		for item in self.insertClsList:
-			item.passInsert=self.passInsertGlobal
-			if item.name in self.passInsertDict:
-				item.passInsert=self.passInsertDict[item.name]
+			item.insertRate=self.globalInsertRate
+			if item.name in self.insertRateDict:
+				item.insertRate=self.insertRateDict[item.name]
 			item.insertRandCode()
 			
 		for item in self.insertClsList:
@@ -830,46 +866,44 @@ class AS3Confuse(object):
 		for item in self.insertClsList:
 			self.saveFile(item.filePath, item.baseContent)
 	
-	'''设置跳过插入代码的几率，0表示每行后都插入代码，1表示完全不插入代码，默认0'''
+	'''设置插入代码的几率，1表示每行后都插入代码，0表示完全不插入代码，默认1'''
 	def setGlobalInsertRate(self,rate):
-		self.passInsertGlobal=rate
+		self.globalInsertRate=rate
 		
-	'''设置特定类（文件）跳过插入代码的几率，0表示每行后都插入代码，1表示完全不插入代码，默认0'''
+	'''设置特定类（文件）插入代码的几率，1表示每行后都插入代码，0表示完全不插入代码'''
 	def setInsertRate(self,name,rate):
-		self.passInsertDict[name]=rate
+		self.insertRateDict[name]=rate
 	
 	
 	def createClass(self, t_num):
 		self.numClass = t_num
 		self.doc_class = randDict.getClass()
-		self.doc_file = self.doc_class.replace('.', "/") + ".as"
+		self.doc_file = self.doc_class.replace('.', '/') + '.as'
 		self.doc = self.doc_class.split('.')[-1]
 		print(self.doc_class)
 		
 		#生成包，生成import
 		self.pkglist = []
-		self.importstr = ""
+		self.importstr = ''
 		numPkg = random.randint(3,5)
 		numPkg = 1
 		if numPkg > t_num:
 			numPkg = t_num
 		subPkg = randDict.getPkg()
 		for i in range(numPkg):
-			tPkg = "com." + subPkg + "." + randDict.getPkg()
+			tPkg = 'com.' + subPkg + '.' + randDict.getPkg()
 			self.pkglist.append(tPkg)
-			self.importstr += "\timport " + tPkg + ".*;\n"
+			self.importstr += '\timport ' + tPkg + '.*;\n'
 		
 			
 
 		self.classList = []
-		print(u"开始生成类...")
+		print(u'开始生成类...')
 		
 		self.updateCreateClass()
 		self.updatecreateVariable()
 		self.updatecreateFunctions()
 		self.updatecreateFunctionsValue()
-		
-		# savePublicFun()
 		
 	
 	#创建类
@@ -877,38 +911,38 @@ class AS3Confuse(object):
 		levels=RandomAS3.rateArray(self.numClass,self.level_class)
 		for idx in range(self.numClass):
 			self.classList.append(AS3Class(self, randDict.getClass(), self.pkglist[idx % len(self.pkglist)], levels.pop()))
-			print(u"生成类: " + self.classList[idx].name + "\t" + str(idx + 1) + "/" + str(self.numClass))
-		print(u"Class生成完成!")
+			print(u'生成类: ' + self.classList[idx].name + '\t' + str(idx + 1) + '/' + str(self.numClass))
+		print(u'Class生成完成!')
 	
 	#创建变量
 	def updatecreateVariable(self):
 		for idx,item in enumerate(self.classList):
 			item.createVariables(True)
-			print(u"生成类变量: " + item.name + "\t" + str(idx + 1) + "/" + str(self.numClass))
-		print(u"变量生成完成!")
+			print(u'生成类变量: ' + item.name + '\t' + str(idx + 1) + '/' + str(self.numClass))
+		print(u'变量生成完成!')
 	
 	#创建方法
 	def updatecreateFunctions(self):
 		for idx,item in enumerate(self.classList):
 			item.createFunctions()
-			print(u"生成类方法: " + item.name + "\t" + str(idx + 1) + "/" + str(self.numClass))
+			print(u'生成类方法: ' + item.name + '\t' + str(idx + 1) + '/' + str(self.numClass))
 	
 	
 	#创建方法内容
 	def updatecreateFunctionsValue(self):
 		for idx,item in enumerate(self.classList):
 			item.createFunctionsValue()
-			print(u"代码填充: " + item.name + "\t" + str(idx + 1) + "/" + str(self.numClass))
+			print(u'代码填充: ' + item.name + '\t' + str(idx + 1) + '/' + str(self.numClass))
 		
 	def outFiles(self,root):
 		self.nativePath=root.replace('/','\\')
 		for idx,item in enumerate(self.classList):
 			self.saveFile(item.filePath, item.out())
-			print(u"生成代码文件: " + item.name + "\t" + str(idx + 1) + "/" + str(self.numClass))
+			print(u'生成代码文件: ' + item.name + '\t' + str(idx + 1) + '/' + str(self.numClass))
 		
-		print(u"生成文档类")
+		print(u'生成文档类')
 		self.saveFile(self.doc_file, self.out())
-		print(u"全部代码生成完成!")
+		print(u'全部代码生成完成!')
 	
 	def saveFile(self, filePath, t_code):
 		filePath=filePath.replace('/','\\')
@@ -919,26 +953,24 @@ class AS3Confuse(object):
 		with open(t_f,'w') as f:
 			f.write(t_code)
 	
-	def savePublicFun(self):
-		arr = self.getPulbicFuns()
-		self.saveFile("rand_funs.txt", "\n".join(arr))
-	
 	def out(self):
-		tVars = ""
+		tVars = ''
 		for idx,item in enumerate(self.classList):
-			tVars += "\t\tpublic static var " + item.name.lower() + ":" + item.name + " = new " + item.name + "();\n"
+			tVars += '\t\tpublic static var ' + item.name.lower() + ':' + item.name + ' = new ' + item.name + '();\n'
 		
-		tArr = self.doc_class.split(".")
+		tArr = self.doc_class.split('.')
 		del tArr[-1]
 		tPkg = '.'.join(tArr)
 		
 		tStr = AS3Confuse.Template
-		tStr = tStr.replace("{package}", tPkg)
-		tStr = tStr.replace("{import}", self.importstr)
-		tStr = tStr.replace("{class}", self.doc)
-		tStr = tStr.replace("{variable}", tVars)
-		tStr = tStr.replace("{constructor}", "")
-		tStr = tStr.replace("{function}", "")
+		tStr = tStr.replace('{package}', tPkg)
+		tStr = tStr.replace('{parentimport}', 'import flash.display.MovieClip;')
+		tStr = tStr.replace('{parent}', 'MovieClip')
+		tStr = tStr.replace('{import}', self.importstr)
+		tStr = tStr.replace('{class}', self.doc)
+		tStr = tStr.replace('{variable}', tVars)
+		tStr = tStr.replace('{constructor}', '')
+		tStr = tStr.replace('{function}', '')
 		return tStr
 	
 	def getVariable(self, t_dataType, lv):
@@ -991,7 +1023,6 @@ class AS3Confuse(object):
 		else:
 			return None
 	
-	
 	def getRandomClassUnderLevel(self, lv):
 		classArr=[]
 		for item in self.classList:
@@ -1002,33 +1033,6 @@ class AS3Confuse(object):
 		else:
 			return None
 	
-	
-	def getPulbicFuns(self):
-		def getFunParameters(type):
-			resp = "null"
-			if type == "int": 
-				resp = str(random.randint(0,9999))
-			elif type == "Boolean": 
-				resp = "true"
-			elif type == "String": 
-				resp = '"' + str(random.randint(0,9999)) + '"'
-			return resp
-		
-		arr = []
-		for item in self.classList:
-			for fun in item.functions:
-				if fun.type == "public":
-					if fun.parameter:
-						paras = []
-						tArr = fun.parameter.concat()
-						while len(tArr)>0:
-							paras.append(getFunParameters(tArr.shift()[1]))
-						arr.append(self.doc + "." + item.name.lower() + "." + fun.name + "(" + ", ".join(paras) + ");")
-					else:
-						arr.append(self.doc + "." + item.name.lower() + "." + fun.name + "();")
-		
-		return arr
-
 if __name__=='__main__':
 	src='rand/src'
 	if os.path.isdir(src):

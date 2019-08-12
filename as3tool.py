@@ -188,7 +188,6 @@ class AdditionArgv():
 		return repl
 	
 	def getMoarArgvs(self,fname,argv):
-		# print(fname)
 		if '...' in argv:
 			return argv
 		if fname in self.dict:
@@ -204,7 +203,8 @@ class AdditionArgv():
 				for i in range(0,num):
 					idx=random.randint(0,len(self.argvTypes)-1)
 					type=self.argvTypes[idx]
-					name=self.randName(3,7)+str(count)
+					# name=self.randName(3,7)+str(count)
+					name='argv'+str(count)
 					fun=self.argvFun[type]
 					argvli.append(name+':'+type+' = '+fun())
 					count+=1
@@ -250,23 +250,31 @@ class AS3BlurTool():
 		random.seed()
 		
 		#额外参数
-		self.additionArgv=AdditionArgv()
+		self.argv=AdditionArgv()
 		#额外函数
 		# self.additionFun=AdditionFun()
-		#替换类名:原类名，用来查找原类名
-		self.classDict={}
 		#要替换的关键字字典
 		self.replDict={}
+		#replDict键值翻转，用来查找原字段名
+		self.re_replDict={}
 		#要替换的关键字列表
 		self.replList=[]
 		
+		self.regCls=re.compile('\\b(class|interface)\s+(\w+)\\b')#匹配class定义
+		self.regVar=re.compile('\\b(var|const)\s+(\w+)\\b')#匹配定义变量
+		self.regFun=re.compile('\\bfunction\s+?(get|set)?\s*(\w+)\\b')#匹配函数语句
 		# self.RegX=re.compile('\\b(_?x?_)(\w+)\\b')#匹配含前缀 _,x_
 		# self.RegX=re.compile('\\b((_x_)|(x_))\w+\\b')#匹配含前缀 x_,_x_
 		self.RegX=re.compile('\\b(\w*)_(\w*)\\b')#匹配含有下划线的单词
 		#始终混淆文件名，不管文件名是不是匹配self.RegX
 		self.blurAllClass=False
+		#始终混淆变量名
+		self.blurAllVar=False
+		#始终混淆函数名
+		self.blurAllFun=False
 		
-		self.addReplace(0,'_','_')#Xue
+		#不混淆的单词
+		self.addExcept('_','i','flash','root','play','stop')#Xue
 	
 	def addReplace(self,power,oldkey,newkey):
 		if oldkey in self.replDict:
@@ -328,53 +336,87 @@ class AS3BlurTool():
 				if not oldpkg in self.replDict:
 					newpkg=oldpkg
 					self.addReplace(len(oldpkg)+1000, oldpkg, newpkg)
-			
 			for file in files:
 				fp=os.path.join(root,file)
 				oldname,ext=os.path.splitext(file)
 				newname=oldname
-				# print(fp)
 				if self.RegX.match(oldname) or self.blurAllClass:
 					if oldname in self.replDict:
 						newname=self.replDict[oldname]['new']
-						print('worning: Class name "'+oldname+'" has existed in self.replDict!!->'+newname)
 					else:
 						newname=randDict.getClass(oldname)
 						self.addReplace(len(oldname),oldname,newname)
 				else:
 					if not oldname in self.replDict:
 						self.addReplace(0,oldname,newname)
-					
-				#记录新类名对应的原类名
-				self.classDict[newname]=oldname
-				
 		#文件内容
 		for root,dirs,files in os.walk(d):
 			for file in files:
 				fp=os.path.join(root,file)
 				with open(fp) as f:
 					filec=f.read()
-				self.RegX.sub(self._recordSubFun,filec)
+				self.RegX.sub(self._regXSubFun,filec)
+				# if self.blurAllClass:
+					# self.regCls.sub(self._clsSubFun,filec)
+				# if self.blurAllVar:
+					# self.regVar.sub(self._varSubFun,filec)
+				# if self.blurAllFun:
+					# self.regFun.sub(self._funSubFun,filec)
 		
-		
+		self.re_replDict=zip(self.replDict.values(),self.replDict.keys())
 		self.replList=self.replDict.values()
 		self.replList.sort(key=lambda obj:obj.get('power'), reverse=True)
 		
-		# print(self.replDict['x_Loger64'])
-		# raw_input()
-		
-	def _recordSubFun(self,match):
-		gp=match.group()
-		word=match.group(2)
-		resu=gp
-		if gp in self.replDict:
-			resu=self.replDict[gp]['new']
+	def _regXSubFun(self,m):
+		word=m.group()
+		resu=word
+		if word in self.replDict:
+			resu=self.replDict[word]['new']
 		else:
-			if gp.isupper():#Xue  排除全是大写的情况
-				pass
+			if word.isupper():#Xue  排除全是大写的情况
+				resu=word
 			else:
 				resu=randDict.getProto(word)
-				self.addReplace(0,gp,resu)
+				self.addReplace(0,word,resu)
+		return resu
+		
+	def _clsSubFun(self,m):
+		word=m.group(2)
+		resu=word
+		if word in self.replDict:
+			resu=self.replDict[word]['new']
+		else:
+			if word.isupper():#Xue  排除全是大写的情况
+				resu=word
+			else:
+				resu=randDict.getClass(word)
+				self.addReplace(0,word,resu)
+		return resu
+	
+	def _varSubFun(self,m):
+		word=m.group(2)
+		resu=word
+		if word in self.replDict:
+			resu=self.replDict[word]['new']
+		else:
+			if word.isupper():#Xue  排除全是大写的情况
+				resu=word
+			else:
+				resu=randDict.getProto(word)
+				self.addReplace(0,word,resu)
+		return resu
+		
+	def _funSubFun(self,m):
+		word=m.group(2)
+		resu=word
+		if word in self.replDict:
+			resu=self.replDict[word]['new']
+		else:
+			if word.isupper():#Xue  排除全是大写的情况
+				resu=word
+			else:
+				resu=randDict.getFun(word)
+				self.addReplace(0,word,resu)
 		return resu
 		
 	def _moveFile(self,pdir,tdir):
@@ -406,11 +448,10 @@ class AS3BlurTool():
 				#替换需要替换的单词
 				filec=self.replAllWords(filec)
 				#添加额外参数
-				filec=self.additionArgv.creat(filec,nm)
+				filec=self.argv.creat(filec,nm)
 				#保存
 				with open(tfp,'w') as f:
 					f.write(filec)
-		
 		
 	def blur(self,pdir,tdir):
 		print('AS3BlurTool start')
