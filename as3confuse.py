@@ -9,6 +9,12 @@ import shutil
 
 from words import randDict
 
+def progress(msg,idx,num):
+	sys.stdout.write('\r'+msg+':'+str(idx)+'/'+str(num))
+	sys.stdout.flush()
+	if idx==num:
+		print('')
+	
 class RandomAS3(object):
 	
 	@staticmethod
@@ -107,9 +113,6 @@ class AS3CodeRow(object):
 		if localFun:
 			funs = self.clas.getFunctionsUnderLv(self.fun.level)
 			t_fun = random.choice(funs)
-			#if t_fun.name == self.fun.name:#Xue
-				#return func();
-			#}
 			if t_fun==self.fun:#Xue
 				return self.func()
 
@@ -133,8 +136,6 @@ class AS3CodeRow(object):
 		else:
 			t_arr = self.code.getFunsNotVoid(self.clas.level)
 			t_fun = random.choice(t_arr)[0]
-			# if t_fun.name == self.fun.name:
-				# return self.func()
 			if t_fun==self.fun:#Xue
 				return self.func()
 			if not t_fun.isParameter:
@@ -554,7 +555,7 @@ class AS3Class(object):
 		
 		self.baseContent=None
 		self.type=None#class or interface
-		self.insertRate=0#跳过插入代码的几率，0表示每行后都插入代码，1表示完全不插入代码
+		self.insertRate=1#插入代码的几率，1表示每行后都插入代码，0表示完全不插入代码
 	
 	def createVariables(self,isStatic=False):
 		if isStatic:
@@ -712,12 +713,12 @@ class AS3Class(object):
 					newLines.append(AS3Confuse.markBlur(funObj.out()))
 			
 		self.baseContent='\n'.join(newLines)
-		print(u'插入代码完成：'+self.filePath)
+		
 		
 	'''把生成的随机属性和方法加入到dependClass的class定义后'''
 	def addRandCode(self):
 		self.baseContent=self.code.clsReg.sub(self._outBaseSubFun,self.baseContent)
-		print(u'添加代码完成：'+self.filePath)
+		
 	
 	def _outBaseSubFun(self,m):
 		gp=m.group()
@@ -846,21 +847,27 @@ class AS3Confuse(object):
 					asCls.type=m.group(1)
 					
 		os.chdir(rootdir)
-		for item in self.insertClsList:
+		num=len(self.insertClsList)
+		for idx,item in enumerate(self.insertClsList):
 			item.createVariables()
-		for item in self.insertClsList:
+			progress(u'生成类变量',idx+1,num)
+		for idx,item in enumerate(self.insertClsList):
 			item.createFunctions()
-		for item in self.insertClsList:
+			progress(u'生成类方法',idx+1,num)
+		for idx,item in enumerate(self.insertClsList):
 			item.createFunctionsValue()
+			progress(u'代码填充',idx+1,num)
 		
-		for item in self.insertClsList:
+		for idx,item in enumerate(self.insertClsList):
 			item.insertRate=self.globalInsertRate
 			if item.name in self.insertRateDict:
 				item.insertRate=self.insertRateDict[item.name]
 			item.insertRandCode()
+			progress(u'插入代码',idx+1,num)
 			
-		for item in self.insertClsList:
+		for idx,item in enumerate(self.insertClsList):
 			item.addRandCode()
+			progress(u'添加代码',idx+1,num)
 		
 		self.nativePath=tpath.replace('/','\\')
 		for item in self.insertClsList:
@@ -880,7 +887,7 @@ class AS3Confuse(object):
 		self.doc_class = randDict.getClass()
 		self.doc_file = self.doc_class.replace('.', '/') + '.as'
 		self.doc = self.doc_class.split('.')[-1]
-		print(self.doc_class)
+		# print(self.doc_class)
 		
 		#生成包，生成import
 		self.pkglist = []
@@ -911,36 +918,33 @@ class AS3Confuse(object):
 		levels=RandomAS3.rateArray(self.numClass,self.level_class)
 		for idx in range(self.numClass):
 			self.classList.append(AS3Class(self, randDict.getClass(), self.pkglist[idx % len(self.pkglist)], levels.pop()))
-			print(u'生成类: ' + self.classList[idx].name + '\t' + str(idx + 1) + '/' + str(self.numClass))
-		print(u'Class生成完成!')
+			progress(u'生成类',idx+1,self.numClass)
 	
 	#创建变量
 	def updatecreateVariable(self):
 		for idx,item in enumerate(self.classList):
 			item.createVariables(True)
-			print(u'生成类变量: ' + item.name + '\t' + str(idx + 1) + '/' + str(self.numClass))
-		print(u'变量生成完成!')
+			progress(u'生成类变量',idx+1,self.numClass)
 	
 	#创建方法
 	def updatecreateFunctions(self):
 		for idx,item in enumerate(self.classList):
 			item.createFunctions()
-			print(u'生成类方法: ' + item.name + '\t' + str(idx + 1) + '/' + str(self.numClass))
-	
+			progress(u'生成类方法',idx+1,self.numClass)
 	
 	#创建方法内容
 	def updatecreateFunctionsValue(self):
 		for idx,item in enumerate(self.classList):
 			item.createFunctionsValue()
-			print(u'代码填充: ' + item.name + '\t' + str(idx + 1) + '/' + str(self.numClass))
+			progress(u'代码填充',idx+1,self.numClass)
 		
 	def outFiles(self,root):
 		self.nativePath=root.replace('/','\\')
 		for idx,item in enumerate(self.classList):
 			self.saveFile(item.filePath, item.out())
-			print(u'生成代码文件: ' + item.name + '\t' + str(idx + 1) + '/' + str(self.numClass))
+			progress(u'生成代码文件',idx+1,self.numClass)
 		
-		print(u'生成文档类')
+		print(u'生成主类')
 		self.saveFile(self.doc_file, self.out())
 		print(u'全部代码生成完成!')
 	
