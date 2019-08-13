@@ -6,8 +6,21 @@ import os
 import re
 import random
 import shutil
-
 from words import randDict
+
+AS3ClassTemplate='''\
+package {package}{//{info}
+	{parentimport}
+{import}
+	public class {class} extends {parent}{
+{variable}
+		public function {class}() {
+{constructor}
+		}
+		
+{function}
+	}
+}'''
 
 def progress(msg,idx,num):
 	sys.stdout.write('\r'+msg+':'+str(idx)+'/'+str(num))
@@ -115,7 +128,6 @@ class AS3CodeRow(object):
 			t_fun = random.choice(funs)
 			if t_fun==self.fun:#Xue
 				return self.func()
-
 			if t_fun.returnNotVoid:
 				return self.func()
 			if not t_fun.isParameter:
@@ -169,7 +181,6 @@ class AS3CodeRow(object):
 			return ':Boolean = ' + self.BoolValue() + ';'
 		elif self.codeDataType == AS3Class.CLASS: 
 			return ':' + self.codeClass.name + ' = new ' + self.codeClass.name + '();'
-		
 		return ''
 	
 	def next(self):
@@ -380,8 +391,7 @@ class AS3CodeRow(object):
 		for i in range(num):
 			t_str += str(random.randint(0,9))
 		return '"' + t_str + '"'
-
-
+	
 class AS3Function(object):
 	VOID='void'
 	def __init__(self, clas, type, lv):
@@ -478,7 +488,7 @@ class AS3Variable(object):
 			self.dataType=dataType
 		else:
 			self.dataType = random.choice(AS3Class.DATA_TYPE)
-			if self.clas.level > 0 and random.random() > 0.75:
+			if self.clas.level > 0 and RandomAS3.boolean(0.3):
 				self.dataType = AS3Class.CLASS
 			if self.dataType == AS3Class.CLASS:
 				self.dataType = self.code.getRandomClassUnderLevel(self.clas.level).name
@@ -535,6 +545,7 @@ class AS3Class(object):
 	PARENTS=[ClassObject(),ClassShape(),ClassEventDispatcher(),ClassSprite()]
 	
 	CLASS='Class'
+	INTERFACE='interface'
 	STRING='String'
 	INT='int'
 	BOOLEAN='Boolean'
@@ -583,14 +594,13 @@ class AS3Class(object):
 	def createFunctionsValue(self):
 		for item in self.functions:
 			item.createValue()
-		
 	
 	def out(self):
-		tStr = AS3Confuse.Template
+		tStr = AS3ClassTemplate
 		tStr = tStr.replace('{package}', self.package)
 		tStr = tStr.replace('{parentimport}', 'import '+self.parent.path+';')
 		tStr = tStr.replace('{parent}', self.parent.name)
-		tStr = tStr.replace('{import}', self.code.importstr)
+		tStr = tStr.replace('{import}', self.code.importStr)
 		tStr = tStr.replace('{class}', self.name)
 		tStr = tStr.replace('{variable}', self.outVariables())
 		tStr = tStr.replace('{constructor}', '')
@@ -668,7 +678,7 @@ class AS3Class(object):
 	
 	'''在代码行之间插入混淆代码'''
 	def insertRandCode(self):
-		if self.type=='interface':
+		if self.type==AS3Class.INTERFACE:
 			return
 		#        元数据              包定义      import语句   switch语句  class语句       变量定义                    }   return      break      for
 		regStrs=['\[\w+\((.*?)\)\]','package\\b','import\\b','switch\\b','public\s+class','([\w ]+?)?(var|const)\s','\}','return\\b','break\\b','for\\b']#匹配需要跳过插入代码的行
@@ -714,79 +724,54 @@ class AS3Class(object):
 			
 		self.baseContent='\n'.join(newLines)
 		
-		
 	'''把生成的随机属性和方法加入到dependClass的class定义后'''
 	def addRandCode(self):
 		self.baseContent=self.code.clsReg.sub(self._outBaseSubFun,self.baseContent)
 		
-	
 	def _outBaseSubFun(self,m):
 		gp=m.group()
 		tp=m.group(1)
-		if tp=='interface':
+		if tp==AS3Class.INTERFACE:
 			return gp
-		impt=AS3Confuse.markBlur(self.code.importstr)
+		impt=AS3Confuse.markBlur(self.code.importStr)
 		members=AS3Confuse.markBlur(self.outVariables()+'\n'+self.outFunctions())
 		return impt+gp+members
 		
 class AS3File(object):
 	def __init__(self):
 		pass
-
-
+	
 class AS3Confuse(object):
-	
-	Template=None
-	
 	#添加表示混淆代码的注释
 	@staticmethod
 	def markBlur(cc):
 		return '\n//-%-confuse-start-%-\n'+cc+'\n//-%-confuse-end-%-\n'
 	
 	def __init__(self):
-		if not AS3Confuse.Template:
-			AS3Confuse.Template=''\
-'package {package}{//{info}\n\
-	{parentimport}\n\
-{import}\n\
-	public class {class} extends {parent}{\n\
-{variable}\n\
-		public function {class}() {\n\
-{constructor}\n\
-		}\n\
-		\n\
-{function}\n\
-	}\n\
-}'
 		self.config={'varMin': 5, 'varMax': 10, 'funMin': 5, 'funMax': 10, 'codeMax': 5}
 		self.level_class=3
 		self.level_fun=3
 		
-		self.doc_class=None
-		self.doc_file=None
-		self.doc=None
-		
 		self.numClass = 50
-		self.pkglist=None
-		self.importstr=None
+		self.clsPkg=None
+		self.importStr=None
 		self.classList=None
 		
 		self.nativePath=None
 		
 		#------------------------------------------------------------------------------------------
-		self.insertClsList=None
 		self.globalInsertRate=1
 		self.insertRateDict={}
 		
 		self.noteReg=re.compile('\\/\\*(\\s|.)*?\\*\\/|(?<!:)\\/\\/.*')#注释
 		self.braceReg=re.compile('(?<=\S)\s+\{')#大括号左半部分
-		self.elseReg=re.compile('\}\s*else\\b')
+		self.elseReg=re.compile('\}\s*else\\b')#else
 		self.spaceReg=re.compile('(?<=\n)[ 	]*\n')#空行
 		self.internalReg=re.compile('\\binternal\s+class\\b')#包内类:internal class
 		# strReg=re.compile(''.*?'|\'.*?\'')#字符串
 		# reReg=re.compile('')#正则
 		
-		self.clsReg=re.compile('public\s+(class|interface)\s+(\w+)\s*(?:[\w\s,]+)?\{')#匹配public class类定义，添加import和属性，不包括包外类
+		self.clsReg=re.compile('public\s+(class|interface)\s+(\w+)\s*(?:[\w\s,]+)?\{')#匹配public class类定义，添加import和属性方法，不包括包外类
 		self.simpleClsReg=re.compile('\\b(class|interface)\s+(\w+)')
 		
 	def creat(self,t_path,t_num):
@@ -797,7 +782,6 @@ class AS3Confuse(object):
 	
 	'''格式化代码，检查代码格式'''
 	def formatFiles(self,t_path):
-		#classReg=re.compile('\bclass\b.*?\{')
 		for root,dirs,files in os.walk(t_path):
 			for file in files:
 				fp=os.path.join(root,file)
@@ -812,25 +796,29 @@ class AS3Confuse(object):
 					cc=self.spaceReg.sub('',cc)
 					cc=self.internalReg.sub('public class',cc)
 					self.checkFormat(fp,cc)
-					mh=self.clsReg.search(cc)
-					if mh:
-						if mh.group(2)!=nm:
-							raw_input('file name not == class name')
-					else:
-						raw_input('not match class reg')
 					
 					with open(fp,'w') as f:
 						f.write(cc)
 						
+	'''检查代码格式'''
 	def checkFormat(self,fp,asfile):
+		nm,ext=os.path.splitext(os.path.basename(fp))
 		clsli=self.simpleClsReg.findall(asfile)
 		if len(clsli)>=2:
 			print(u'-->警告：不支持包内类定义，一个文件中只允许定义一个同名类。file:'+fp)
 			raise Exception(fp)
-	
+		
+		m=self.clsReg.search(asfile)
+		if m:
+			if m.group(2)!=nm:
+				print(u'-->警告：文件中类定义和文件名不匹配。file:'+fp)
+				raise Exception(fp)
+		else:
+			print(u'-->警告：在文件中找不到类定义。file:'+fp)
+			raise Exception(fp)
 	
 	def insertCode(self,tpath):
-		self.insertClsList=[]
+		tmpClassList=[]
 		rootdir=os.getcwd()
 		os.chdir(tpath)
 		for root,dirs,files in os.walk('.'):
@@ -842,35 +830,35 @@ class AS3Confuse(object):
 					asCls=AS3Class(self,nm,pkg,self.level_class)
 					with open(fp) as f:
 						asCls.baseContent=f.read()
-					self.insertClsList.append(asCls)
+					tmpClassList.append(asCls)
 					m=self.clsReg.search(asCls.baseContent)
 					asCls.type=m.group(1)
-					
+		
 		os.chdir(rootdir)
-		num=len(self.insertClsList)
-		for idx,item in enumerate(self.insertClsList):
+		num=len(tmpClassList)
+		for idx,item in enumerate(tmpClassList):
 			item.createVariables()
 			progress(u'生成类变量',idx+1,num)
-		for idx,item in enumerate(self.insertClsList):
+		for idx,item in enumerate(tmpClassList):
 			item.createFunctions()
 			progress(u'生成类方法',idx+1,num)
-		for idx,item in enumerate(self.insertClsList):
+		for idx,item in enumerate(tmpClassList):
 			item.createFunctionsValue()
 			progress(u'代码填充',idx+1,num)
 		
-		for idx,item in enumerate(self.insertClsList):
+		for idx,item in enumerate(tmpClassList):
 			item.insertRate=self.globalInsertRate
 			if item.name in self.insertRateDict:
 				item.insertRate=self.insertRateDict[item.name]
 			item.insertRandCode()
 			progress(u'插入代码',idx+1,num)
 			
-		for idx,item in enumerate(self.insertClsList):
+		for idx,item in enumerate(tmpClassList):
 			item.addRandCode()
 			progress(u'添加代码',idx+1,num)
 		
 		self.nativePath=tpath.replace('/','\\')
-		for item in self.insertClsList:
+		for item in tmpClassList:
 			self.saveFile(item.filePath, item.baseContent)
 	
 	'''设置插入代码的几率，1表示每行后都插入代码，0表示完全不插入代码，默认1'''
@@ -881,29 +869,12 @@ class AS3Confuse(object):
 	def setInsertRate(self,name,rate):
 		self.insertRateDict[name]=rate
 	
-	
 	def createClass(self, t_num):
 		self.numClass = t_num
-		self.doc_class = randDict.getClass()
-		self.doc_file = self.doc_class.replace('.', '/') + '.as'
-		self.doc = self.doc_class.split('.')[-1]
-		# print(self.doc_class)
 		
-		#生成包，生成import
-		self.pkglist = []
-		self.importstr = ''
-		numPkg = random.randint(3,5)
-		numPkg = 1
-		if numPkg > t_num:
-			numPkg = t_num
-		subPkg = randDict.getPkg()
-		for i in range(numPkg):
-			tPkg = 'com.' + subPkg + '.' + randDict.getPkg()
-			self.pkglist.append(tPkg)
-			self.importstr += '\timport ' + tPkg + '.*;\n'
+		self.clsPkg = 'com.' + randDict.getPkg() + '.' + randDict.getPkg()
+		self.importStr = '\timport ' + self.clsPkg + '.*;'
 		
-			
-
 		self.classList = []
 		print(u'开始生成类...')
 		
@@ -917,7 +888,7 @@ class AS3Confuse(object):
 	def updateCreateClass(self):
 		levels=RandomAS3.rateArray(self.numClass,self.level_class)
 		for idx in range(self.numClass):
-			self.classList.append(AS3Class(self, randDict.getClass(), self.pkglist[idx % len(self.pkglist)], levels.pop()))
+			self.classList.append(AS3Class(self, randDict.getClass(), self.clsPkg, levels.pop()))
 			progress(u'生成类',idx+1,self.numClass)
 	
 	#创建变量
@@ -942,10 +913,8 @@ class AS3Confuse(object):
 		self.nativePath=root.replace('/','\\')
 		for idx,item in enumerate(self.classList):
 			self.saveFile(item.filePath, item.out())
-			progress(u'生成代码文件',idx+1,self.numClass)
+			progress(u'保存代码文件',idx+1,self.numClass)
 		
-		print(u'生成主类')
-		self.saveFile(self.doc_file, self.out())
 		print(u'全部代码生成完成!')
 	
 	def saveFile(self, filePath, t_code):
@@ -956,26 +925,6 @@ class AS3Confuse(object):
 			os.makedirs(targetParent)
 		with open(t_f,'w') as f:
 			f.write(t_code)
-	
-	def out(self):
-		tVars = ''
-		for idx,item in enumerate(self.classList):
-			tVars += '\t\tpublic static var ' + item.name.lower() + ':' + item.name + ' = new ' + item.name + '();\n'
-		
-		tArr = self.doc_class.split('.')
-		del tArr[-1]
-		tPkg = '.'.join(tArr)
-		
-		tStr = AS3Confuse.Template
-		tStr = tStr.replace('{package}', tPkg)
-		tStr = tStr.replace('{parentimport}', 'import flash.display.MovieClip;')
-		tStr = tStr.replace('{parent}', 'MovieClip')
-		tStr = tStr.replace('{import}', self.importstr)
-		tStr = tStr.replace('{class}', self.doc)
-		tStr = tStr.replace('{variable}', tVars)
-		tStr = tStr.replace('{constructor}', '')
-		tStr = tStr.replace('{function}', '')
-		return tStr
 	
 	def getVariable(self, t_dataType, lv):
 		t_arr=[]
@@ -1038,16 +987,17 @@ class AS3Confuse(object):
 			return None
 	
 if __name__=='__main__':
-	src='rand/src'
-	if os.path.isdir(src):
-		shutil.rmtree(src)
-	shutil.copytree('D:\h5pkg\develop\src',src)
+	# src='rand/src'
+	# if os.path.isdir(src):
+		# shutil.rmtree(src)
+	# shutil.copytree('D:\h5pkg\develop\src',src)
 	
-	ac=AS3Confuse()
-	ac.formatFiles(src)
-	ac.createClass(20)
-	ac.insertCode(src)
-	ac.outFiles(src)
+	# ac=AS3Confuse()
+	# ac.formatFiles(src)
+	# ac.createClass(20)
+	# ac.insertCode(src)
+	# ac.outFiles(src)
+	print(AS3ClassTemplate)
 
 
 
