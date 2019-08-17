@@ -9,6 +9,8 @@ import shutil
 import codecs
 from words import randDict
 
+
+
 AS3ClassTemplate='''\
 package {package}{//{info}
 	{parentimport}
@@ -396,6 +398,55 @@ class AS3CodeRow(object):
 		for i in range(num):
 			t_str += str(random.randint(0,9))
 		return '"' + t_str + '"'
+		
+class AS3FunInfo(object):
+	STATIC='static'
+	funReg=re.compile('((?:(?:\w+)\s+)*)function\s+((?:get|set)?\s*\w+)\s*\((.*?)\)\s*?(:\s*?\w+?)?\s*?\{')
+	# funPrefixs='final|override|static|public|protected|private|internal'
+	def __init__(self,mat):
+		self.prefixs=re.findall('\w+',mat.group(1))
+		self.name=mat.group(2)
+		self.argv=mat.group(3)
+		self.type=mat.group(4)
+		self.isStatic=AS3FunInfo.STATIC in self.prefixs
+		
+	@staticmethod
+	def test(line):
+		mat=AS3FunInfo.funReg.match(line)
+		if mat:
+			return AS3FunInfo(mat)
+		else:
+			return None
+			
+class AS3PassLine(object):
+	strs=[]
+	strs.append('package\\b')#package
+	strs.append('import\\b')#import
+	strs.append('switch\\b')#switch
+	strs.append('return\\b')#return
+	strs.append('break\\b')#break
+	strs.append('\}')#}
+	strs.append('\[\w+\((.*?)\)\]')#元数据
+	strs.append('([\w ]+?)?(var|const)\s')#变量定义
+	strs.append('[\w ]*?\\bfunction\\b.*?\{.*?\}')#写在单行的函数
+	
+	strs.append('public\s+class')#class语句
+	strs.append('dynamic\s+public\s+class')#class语句
+	strs.append('public\s+dynamic\s+class')#class语句
+	
+	strs.append('for\\b')#for
+	strs.append('if\\b')#if
+	strs.append('else\\b')#else
+	# ifelseReg=re.compile('')#匹配不带大括号的if else
+	
+	reg=re.compile('|'.join(strs))
+	
+	def __init__(self):
+		pass
+		
+	@staticmethod
+	def test(line):
+		return AS3PassLine.reg.match(line)
 	
 class AS3Function(object):
 	VOID='void'
@@ -421,7 +472,7 @@ class AS3Function(object):
 	
 	def createValue(self):
 		#确定多少行代码
-		t_row=random.randint(0,self.code.config['codeMax'])+1
+		t_row=random.randint(1,self.code.config['codeMax'])
 		self.rows = []
 		for idx in range(t_row):
 			row=AS3CodeRow(self)
@@ -457,7 +508,7 @@ class AS3Function(object):
 		t_parameter = ''
 		if self.isParameter:
 			for item in self.parameter:
-				t_parameter += item[0] + ': ' + item[1] + ','
+				t_parameter += item[0] + ':' + item[1] + ','
 			t_parameter = t_parameter[0:-1]
 		t_void = ':' + self.returnType
 		
@@ -466,14 +517,13 @@ class AS3Function(object):
 			for item in self.rows:
 				t_rowStr += item.out() + '\n'
 		
-		
-		t_str = '\t\t' + self.type + ' function ' + self.name + '(' + t_parameter + ')' + t_void + ' {\n'
+		t_str = '\t\t' + self.type + ' function ' + self.name + '(' + t_parameter + ')' + t_void + ' {//level:'+str(self.level)+'\n'
 		if self.code.debugtrace:
 			t_str+='trace("'+self.clas.name+'::'+self.name+'()");\n'
 		t_str += t_rowStr
 		t_str += '\t\t}\n'
 		return t_str
-
+		
 	def isOpen(self):
 		return self.type == AS3Class.PUBLIC
 	
@@ -552,7 +602,7 @@ class AS3Class(object):
 	
 	PARENTS=[ClassObject(),ClassShape(),ClassEventDispatcher(),ClassSprite()]
 	
-	CLASS='Class'
+	CLASS='class'
 	INTERFACE='interface'
 	STRING='String'
 	INT='int'
@@ -699,18 +749,8 @@ class AS3Class(object):
 	def insertRandCode(self):
 		if self.type==AS3Class.INTERFACE:
 			return
-		#        元数据              包定义      import语句   switch语句   变量定义                    }   return      break      for
-		regStrs=['\[\w+\((.*?)\)\]','package\\b','import\\b','switch\\b','([\w ]+?)?(var|const)\s','\}','return\\b','break\\b','for\\b']#匹配需要跳过插入代码的行
-		#               写在单行的函数                     if       else
-		regStrs.extend(['[\w ]*?\\bfunction\\b.*?\{.*?\}','if\\b','else\\b'])
-		#                class语句              
-		regStrs.extend(['public\s+class','dynamic\s+public\s+class','public\s+dynamic\s+class'])
-		passLineReg=re.compile('|'.join(regStrs))
-		funReg=re.compile('\\b(static)?\s*(?:public|protected|private|internal)?\s+function\s+?((get|set)?\s*\w+)\s*\((.*?)\)\s*?(:\s*?\w+?)?\s*?\{')#匹配函数，如果是静态函数则跳过插入代码，直到遇到非静态函数再开始插入代码
-		isStatic=False
-		curFun=''
-		funObj=None
-		# ifelseReg=re.compile('')#匹配不带大括号的if else
+		curFun=None
+		# funObj=None#Xue
 		
 		newLines=[]
 		lines=self.baseContent.splitlines()
@@ -720,43 +760,37 @@ class AS3Class(object):
 			
 			line=line.strip()
 			
-			tmpFun=curFun
-			m=funReg.search(line)
-			if m:
-				if m.group(1)=='static':
-					isStatic=True
-				else:
-					isStatic=False
-				tmpFun=m.group(2)
-			if isStatic:
+			fun=AS3FunInfo.test(line)
+			if fun:
+				curFun=fun
+			if curFun and curFun.isStatic:
 				continue
-			if tmpFun!=curFun:
-				curFun=tmpFun
-			m=passLineReg.match(line)
-			if not m:
-				if RandomAS3.boolean(self.insertRate):
-					funObj=EmptyFunction(self.code,self)
-					num=random.randint(1,3)
-					for i in range(num):
-						row=AS3CodeRow(funObj)
-						row.initWithNotReturn()
-						funObj.rows.append(row)
-					newLines.append(AS3Confuse.markBlur(funObj.out()))
 			
+			ps=AS3PassLine.test(line)
+			if not ps and RandomAS3.boolean(self.insertRate):
+				funObj=EmptyFunction(self.code,self)
+				num=random.randint(1,3)
+				for i in range(num):
+					row=AS3CodeRow(funObj)
+					row.initWithNotReturn()
+					funObj.rows.append(row)
+				newLines.append(AS3Confuse.markBlur(funObj.out()))
 		self.baseContent='\n'.join(newLines)
 		
-	'''把生成的随机属性和方法加入到dependClass的class定义后'''
+	'''把生成的随机属性和方法插入到代码'''
 	def addRandCode(self):
-		self.baseContent=self.code.clsReg.sub(self._outBaseSubFun,self.baseContent)
+		if self.type==AS3Class.CLASS:
+			self.baseContent=self.code.pkgReg.sub(self._pkgRegSubFun,self.baseContent)
+			self.baseContent=self.code.clsReg.sub(self._clsRegSubFun,self.baseContent)
 		
-	def _outBaseSubFun(self,m):
-		gp=m.group()
-		tp=m.group(1)
-		if tp==AS3Class.INTERFACE:
-			return gp
+	def _pkgRegSubFun(self,m):
 		impt=AS3Confuse.markBlur(self.code.importStr)
+		return m.group()+'\n'+impt
+		
+	def _clsRegSubFun(self,m):
+		gp=m.group()
 		members=AS3Confuse.markBlur(self.outVariables()+'\n'+self.outFunctions())
-		return impt+gp+members
+		return gp+members
 		
 class AS3File(object):
 	def __init__(self):
@@ -772,7 +806,7 @@ class AS3Confuse(object):
 		self.debugtrace=False
 		self.initVar=0.4
 		
-		self.config={'varMin': 5, 'varMax': 10, 'funMin': 5, 'funMax': 10, 'codeMax': 5}
+		self.config={'varMin': 5, 'varMax': 10, 'funMin': 5, 'funMax': 10, 'codeMax': 4}
 		self.level_class=3
 		self.level_fun=3
 		
@@ -791,12 +825,12 @@ class AS3Confuse(object):
 		self.braceReg=re.compile('(?<=\S)\s+\{')#大括号左半部分
 		self.elseReg=re.compile('\}\s*else\\b')#else
 		self.spaceReg=re.compile('(?<=\n)[ 	]*\n')#空行
-		self.unpubReg=re.compile('\\b(internal|final)\s+class\\b')#internal/final class
+		self.unpubReg=re.compile('\\binternal\s+class\\b')#internal/final class
 		# strReg=re.compile(''.*?'|\'.*?\'')#字符串
 		# reReg=re.compile('')#正则
 		
-		self.pkgReg=re.compile('\\package\s+(.*?\{)')#匹配package定义，添加import
-		self.clsReg=re.compile('(?:dynamic\s+)?(public\s+)?(?:dynamic\s+)?(class|interface)\s+(\w+)\s*(?:[\w\s.,]+)?\{')#匹配public class类定义，添加import和属性方法，不包括包外类
+		self.pkgReg=re.compile('\\bpackage\s*(.*?)\{')#匹配package定义，添加import
+		self.clsReg=re.compile('(?:dynamic\s+)?(?:public\s+)?(?:dynamic\s+)?(class|interface)\s+(\w+)\s*(?:[\w\s.,]+)?\{')#匹配public class类定义，添加属性和方法，不包括包外类
 		self.simpleClsReg=re.compile('\\b(class|interface)\s+(\w+)')
 		
 	def creat(self,t_path,t_num):
@@ -807,7 +841,7 @@ class AS3Confuse(object):
 	
 	'''格式化代码，检查代码格式'''
 	def formatFiles(self,t_path):
-		# os.system('type '+t_path+' > '+t_path)
+		print(u'格式化代码...')
 		for root,dirs,files in os.walk(t_path):
 			for file in files:
 				fp=os.path.join(root,file)
@@ -821,15 +855,20 @@ class AS3Confuse(object):
 					cc=self.braceReg.sub('{',cc)
 					cc=self.elseReg.sub('}else',cc)
 					cc=self.unpubReg.sub('public class',cc)
-					cc=cc.strip()#Xue 去掉文件开头和末尾的空字符
 					cc=self.spaceReg.sub('',cc)
+					cc=cc.strip()#Xue 去掉文件开头和末尾的空字符
 					self.checkFormat(fp,cc)
 					
 					with open(fp,'w') as f:
 						f.write(cc)
-						
+		
 	'''检查代码格式'''
 	def checkFormat(self,fp,asfile):
+		m=self.pkgReg.match(asfile)
+		if not m:
+			print(u'-->警告：在文件中找不到package定义。file:'+fp)
+			raise Exception(fp)
+		
 		nm,ext=os.path.splitext(os.path.basename(fp))
 		clsli=self.simpleClsReg.findall(asfile)
 		if len(clsli)>=2:
@@ -838,7 +877,7 @@ class AS3Confuse(object):
 		
 		m=self.clsReg.search(asfile)
 		if m:
-			if m.group(3)!=nm:
+			if m.group(2)!=nm:
 				print(u'-->警告：文件中类定义和文件名不匹配。file:'+fp)
 				raise Exception(fp)
 		else:
@@ -860,7 +899,7 @@ class AS3Confuse(object):
 						asCls.baseContent=f.read()
 					tmpClassList.append(asCls)
 					m=self.clsReg.search(asCls.baseContent)
-					asCls.type=m.group(1).strip()
+					asCls.type=m.group(1)
 		
 		os.chdir(rootdir)
 		num=len(tmpClassList)
@@ -886,8 +925,9 @@ class AS3Confuse(object):
 			progress(u'添加代码',idx+1,num)
 		
 		self.nativePath=tpath.replace('/','\\')
-		for item in tmpClassList:
+		for idx,item in enumerate(tmpClassList):
 			self.saveFile(item.filePath, item.baseContent)
+			progress(u'保存代码文件',idx+1,num)
 	
 	'''设置插入代码的几率，1表示每行后都插入代码，0表示完全不插入代码，默认1'''
 	def setGlobalInsertRate(self,rate):
